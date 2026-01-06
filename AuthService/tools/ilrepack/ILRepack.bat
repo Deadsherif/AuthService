@@ -1,0 +1,1 @@
+ILRepack.exe /wildcards /lib:.\Libs /out:.\Merged\AuthService481.dll .\Primary\*.dll .\Libs\*.dll

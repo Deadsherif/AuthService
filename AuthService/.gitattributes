@@ -1,0 +1,97 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Source code files
+*.cs text diff=csharp
+*.csproj text merge=union
+*.sln text merge=union eol=crlf
+*.vb text diff=vb
+*.fs text diff=fsharp
+*.fsx text diff=fsharp
+*.fsi text diff=fsharp
+
+# XML project files
+*.xaml text
+*.xml text
+*.config text
+*.props text
+*.targets text
+
+# JSON files
+*.json text
+
+# Markdown files
+*.md text
+
+# Shell scripts
+*.sh text eol=lf
+*.bash text eol=lf
+
+# Batch files
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Web files
+*.html text
+*.css text
+*.js text
+*.ts text
+*.tsx text
+
+# Documentation
+*.txt text
+*.rtf text
+
+# Image files - treat as binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.bmp binary
+*.svg binary
+
+# Compiled files - treat as binary
+*.dll binary
+*.exe binary
+*.pdb binary
+*.so binary
+*.dylib binary
+
+# Archive files
+*.zip binary
+*.tar binary
+*.gz binary
+*.7z binary
+*.rar binary
+
+# NuGet packages
+*.nupkg binary
+*.snupkg binary
+
+# Visual Studio files
+*.suo binary
+*.user binary
+*.userosscache binary
+*.sln.docstates binary
+
+# Build results
+*.cache binary
+*.log binary
+
+# Database files
+*.mdf binary
+*.ldf binary
+*.ndf binary
+
+# Other binary files
+*.pdf binary
+*.doc binary
+*.docx binary
+*.xls binary
+*.xlsx binary
+
+
+
+

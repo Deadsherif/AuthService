@@ -1,0 +1,111 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Net8.0-windows</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <Configurations>Net Framework 4.7;Net Framework 4.8.1;Net8.0-windows</Configurations>	  
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Net Framework 4.7|AnyCPU' ">
+	  <DebugSymbols>true</DebugSymbols>
+	  <DebugType>full</DebugType>
+	  <Optimize>false</Optimize>
+	  <OutputPath>bin\Net Framework 4.7\</OutputPath>
+	  <DefineConstants>DEBUG;_NET_47</DefineConstants>
+	  <TargetFramework>net47</TargetFramework>
+	  <AssemblyName>$(AssemblyName)</AssemblyName>
+	  <LangVersion>latest</LangVersion>
+	  <ErrorReport>prompt</ErrorReport>
+	  <WarningLevel>4</WarningLevel>
+	  <StartAction>Program</StartAction>
+	  <EnableDefaultEmbeddedResourseItems>false</EnableDefaultEmbeddedResourseItems>
+	  <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Net Framework 4.8.1|AnyCPU' ">
+	  <DebugSymbols>true</DebugSymbols>
+	  <DebugType>full</DebugType>
+	  <Optimize>false</Optimize>
+	  <OutputPath>bin\Net Framework 4.8.1\</OutputPath>
+	  <DefineConstants>DEBUG;_NET_481</DefineConstants>
+	  <TargetFramework>net481</TargetFramework>
+	  <AssemblyName>$(AssemblyName)</AssemblyName>
+	  <LangVersion>latest</LangVersion>
+	  <ErrorReport>prompt</ErrorReport>
+	  <WarningLevel>4</WarningLevel>
+	  <StartAction>Program</StartAction>
+	  <EnableDefaultEmbeddedResourseItems>false</EnableDefaultEmbeddedResourseItems>
+	  <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Net8.0-windows|AnyCPU' ">
+	  <DebugSymbols>true</DebugSymbols>
+	  <DebugType>full</DebugType>
+	  <Optimize>false</Optimize>
+	  <OutputPath>bin\Net8.0-windows\Merged\</OutputPath>
+	  <DefineConstants>DEBUG;_NET_8</DefineConstants>
+	  <TargetFramework>net8.0-windows</TargetFramework>
+	  <AssemblyName>$(AssemblyName)</AssemblyName>
+	  <LangVersion>latest</LangVersion>
+	  <ErrorReport>prompt</ErrorReport>
+	  <WarningLevel>4</WarningLevel>
+	  <StartAction>Program</StartAction>
+	  <EnableDefaultEmbeddedResourseItems>false</EnableDefaultEmbeddedResourseItems>
+	  <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+	<ItemGroup Condition=" '$(TargetFramework)' != 'net8.0-windows' ">
+		<Reference Include="PresentationCore" />
+		<Reference Include="WindowsBase" />
+		<Reference Include="PresentationFramework" />
+		<Reference Include="System.Xaml" />
+	</ItemGroup>
+  <ItemGroup>
+    <Compile Include="Auth.cs" />
+    <Compile Include="Commands\RelayCommand.cs" />
+    <Compile Include="MVVM\Models\ApiResponseGet.cs" />
+    <Compile Include="MVVM\Models\ApiResponsePost.cs" />
+    <Compile Include="MVVM\Models\LocalCache.cs" />
+    <Compile Include="MVVM\ViewModel\AuthViewModel.cs" />
+    <Compile Include="MVVM\ViewModel\ViewModelBase.cs" />
+	  <Compile Include="MVVM\View\AuthWindow.xaml.cs">
+		  <DependentUpon>MVVM\View\AuthWindow.xaml</DependentUpon>
+	  </Compile>
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Services\DateHelper.cs" />
+    <Compile Include="Services\DateTimeConverter.cs" />
+    <Compile Include="Services\LocalAuthCache.cs" />
+    <Compile Include="Services\SubscriptionService.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Net.Http.Json" Version="10.0.1" />
+    <PackageReference Include="System.Text.Json" Version="10.0.1" />
+  </ItemGroup>
+	<!-- ilrepack: merge all output dlls into one -->
+	<Target Condition="'$(TargetFramework)' != 'net8.0-windows'" Name="ILRepackAfterBuild" AfterTargets="Build">
+		<PropertyGroup>
+			<ILRepackExe Condition="'$(SolutionDir)' != ''">$(SolutionDir)tools\ilrepack\ILRepack.exe</ILRepackExe>
+			<ILRepackExe Condition="'$(ILRepackExe)' == '' OR !Exists('$(ILRepackExe)')">$(MSBuildProjectDirectory)\tools\ilrepack\ILRepack.exe</ILRepackExe>
+			<MergeOutDir>$(TargetDir)Merged\</MergeOutDir>
+			<MergeOutFile>$(MergeOutDir)AuthService.dll</MergeOutFile>
+			<ILRepackLibDir>$([System.String]::Copy('$(TargetDir)').TrimEnd('\'))</ILRepackLibDir>
+		</PropertyGroup>
+		<ItemGroup>
+			<!-- include primary first -->
+			<PrimaryAssembly Include="$(TargetPath)" />
+			<AssembliesToMerge Include="$(TargetDir)*.dll" Exclude="$(TargetPath);$(MergeOutDir)**\*;$(MergeOutFile)" />
+		</ItemGroup>
+		<PropertyGroup>
+			<PrimaryQuoted>@(PrimaryAssembly->'&quot;%(FullPath)&quot;',' ')</PrimaryQuoted>
+			<AssembliesQuoted>@(AssembliesToMerge->'&quot;%(FullPath)&quot;',' ')</AssembliesQuoted>
+			<ILRepackCmd>&quot;$(ILRepackExe)&quot; /allowduplicateresources /union /lib:&quot;$(ILRepackLibDir)&quot; /out:&quot;$(MergeOutFile)&quot; $(PrimaryQuoted) $(AssembliesQuoted)</ILRepackCmd>
+		</PropertyGroup>
+		<MakeDir Directories="$(MergeOutDir)" Condition="!Exists('$(MergeOutDir)')" />
+		<Exec  Command="$(ILRepackCmd)" Condition="Exists('$(ILRepackExe)')" />
+	</Target>
+</Project>

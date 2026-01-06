@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthService", "AuthService\AuthService.csproj", "{676B22F2-0EE2-467B-AFD2-0551D0E2AE0F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Net Framework 4.7|Any CPU = Net Framework 4.7|Any CPU
+		Net Framework 4.8.1|Any CPU = Net Framework 4.8.1|Any CPU
+		Net8.0-windows|Any CPU = Net8.0-windows|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{676B22F2-0EE2-467B-AFD2-0551D0E2AE0F}.Net Framework 4.7|Any CPU.ActiveCfg = Net Framework 4.7|Any CPU
+		{676B22F2-0EE2-467B-AFD2-0551D0E2AE0F}.Net Framework 4.7|Any CPU.Build.0 = Net Framework 4.7|Any CPU
+		{676B22F2-0EE2-467B-AFD2-0551D0E2AE0F}.Net Framework 4.8.1|Any CPU.ActiveCfg = Net Framework 4.8.1|Any CPU
+		{676B22F2-0EE2-467B-AFD2-0551D0E2AE0F}.Net Framework 4.8.1|Any CPU.Build.0 = Net Framework 4.8.1|Any CPU
+		{676B22F2-0EE2-467B-AFD2-0551D0E2AE0F}.Net8.0-windows|Any CPU.ActiveCfg = Net8.0-windows|Any CPU
+		{676B22F2-0EE2-467B-AFD2-0551D0E2AE0F}.Net8.0-windows|Any CPU.Build.0 = Net8.0-windows|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
