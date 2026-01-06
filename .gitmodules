@@ -1,0 +1,3 @@
+[submodule "FirstOptionTools/AuthService"]
+	path = FirstOptionTools/AuthService
+	url = https://github.com/Deadsherif/AuthService.git
