@@ -93,6 +93,7 @@
     <Compile Include="Services\LocalAuthCache.cs" />
     <Compile Include="Services\SubscriptionService.cs" />
     <Compile Include="Services\Validiation.cs" />
+    <Compile Include="Services\Licensing\LicenseClaims.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Net.Http.Json" Version="8.0.0" />
