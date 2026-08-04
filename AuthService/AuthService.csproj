@@ -95,10 +95,12 @@
     <Compile Include="Services\Validiation.cs" />
     <Compile Include="Services\Licensing\LicenseClaims.cs" />
     <Compile Include="Services\Licensing\LicensePublicKeys.cs" />
+    <Compile Include="Services\Licensing\LicenseTokenVerifier.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Net.Http.Json" Version="8.0.0" />
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.1.2" />
   </ItemGroup>
 	<!-- ilrepack: merge all output dlls into one
 	<Target Condition="'$(TargetFramework)' != 'net8.0-windows'" Name="ILRepackAfterBuild" AfterTargets="Build">
