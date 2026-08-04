@@ -1,0 +1,5 @@
+{
+  "kid": "k1",
+  "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE5xGWtVbs4MuObhu3uZvioRsxn5uA\nF9GC6rzutE8zfvqmjaNx9kGt60c8rfKlL75VBym5dfctxW\u002BqjH8L4sgJrw==\n-----END PUBLIC KEY-----",
+  "privateKeyPem": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgkk6\u002BsvwwQFxJxzhm\n8VqKN4uAvngsaH0SbydHmaCgXWGhRANCAATnEZa1Vuzgy45uG7e5m\u002BKhGzGfm4AX\n0YLqvO60TzN\u002B\u002BqaNo3H2Qa3rRzyt8qUvvlUHKbl19y3Fb6qMfwviyAmv\n-----END PRIVATE KEY-----"
+}

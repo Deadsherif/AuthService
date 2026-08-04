@@ -1,0 +1,32 @@
+[
+  {
+    "name": "valid",
+    "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIiwidHlwIjoiSldUIn0.eyJpc3MiOiJmaXJzdG9wdGlvbiIsImFkZG9uIjoiOUY0RTdDOWItOUIwNi00RTlELTkyQkQtMUZEMEEzQTJEN0Y4IiwidGllciI6InBhaWQiLCJpYXQiOiIxNzAwMDAwMDAwIiwiZXhwIjoiMTkwMDAwMDAwMCIsImRldmljZSI6IjZiZTA0MTJhNWRhYzBhNjNkNjg4YTlhNjA2MDhiMjI1N2M4MjkyYmI2NjM3MzhiOTUyYjliYmU1YTRmZjlmZGQiLCJqdGkiOiIzYzAxZTI4Zi1mYmQ1LTQxYzItOWE3Zi1hOTg3YjgxZDJhYmYifQ.-77RMOPj6PVtjQNQa1GvJO4u9kOpMbotpu9PDa7K6umRhNmuLE9UOsZTQzdWJExPkJn4L2hVC59d5eqijtBnsQ",
+    "expectValid": true,
+    "reason": "well-formed"
+  },
+  {
+    "name": "tampered",
+    "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIiwidHlwIjoiSldUIn0.eyJpc3MiOiJmaXJzdG9wdGlvbiIsImFkZG9uIjoiOUY0RTdDOWItOUIwNi00RTlELTkyQkQtMUZEMEEzQTJEN0Y4IiwidGllciI6ImVudGVycHJpc2UiLCJpYXQiOiIxNzAwMDAwMDAwIiwiZXhwIjoiMTkwMDAwMDAwMCIsImRldmljZSI6IjZiZTA0MTJhNWRhYzBhNjNkNjg4YTlhNjA2MDhiMjI1N2M4MjkyYmI2NjM3MzhiOTUyYjliYmU1YTRmZjlmZGQiLCJqdGkiOiIzYzAxZTI4Zi1mYmQ1LTQxYzItOWE3Zi1hOTg3YjgxZDJhYmYifQ.-77RMOPj6PVtjQNQa1GvJO4u9kOpMbotpu9PDa7K6umRhNmuLE9UOsZTQzdWJExPkJn4L2hVC59d5eqijtBnsQ",
+    "expectValid": false,
+    "reason": "payload edited"
+  },
+  {
+    "name": "expired",
+    "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIiwidHlwIjoiSldUIn0.eyJpc3MiOiJmaXJzdG9wdGlvbiIsImFkZG9uIjoiOUY0RTdDOWItOUIwNi00RTlELTkyQkQtMUZEMEEzQTJEN0Y4IiwidGllciI6InBhaWQiLCJpYXQiOiIxNzAwMDAwMDAwIiwiZXhwIjoiMTYwMDAwMDAwMCIsImRldmljZSI6IjZiZTA0MTJhNWRhYzBhNjNkNjg4YTlhNjA2MDhiMjI1N2M4MjkyYmI2NjM3MzhiOTUyYjliYmU1YTRmZjlmZGQiLCJqdGkiOiJmNDlmYzJkZS01MTJkLTQ1MjYtYjg1Zi1kZjQzZjhjYTUzYTcifQ.CLtdUVpmg6_GowmVuSFhsbeO60Wa771sVpjrHV8Z4WZ0UYKf-u3AcCI4aC9caq_lEuyLsyTukyh-5THpGc9jKA",
+    "expectValid": false,
+    "reason": "exp in past"
+  },
+  {
+    "name": "wrongDevice",
+    "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIiwidHlwIjoiSldUIn0.eyJpc3MiOiJmaXJzdG9wdGlvbiIsImFkZG9uIjoiOUY0RTdDOWItOUIwNi00RTlELTkyQkQtMUZEMEEzQTJEN0Y4IiwidGllciI6InBhaWQiLCJpYXQiOiIxNzAwMDAwMDAwIiwiZXhwIjoiMTkwMDAwMDAwMCIsImRldmljZSI6ImRlYWRiZWVmIiwianRpIjoiNmRkNGI4ZjYtMGEwMC00ODRhLThlNzctZTNmYTdjMjQzMzRhIn0.lJF2QgMBm9nQaTUwuf5Tl_0y8_G6fPBRe3YnS4KtcBgiHBNJZsZs2NGj95oLfa-C4Eik6qzxoTvUCQqNHZ254g",
+    "expectValid": false,
+    "reason": "device mismatch"
+  },
+  {
+    "name": "wrongKey",
+    "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImsxIiwidHlwIjoiSldUIn0.eyJpc3MiOiJmaXJzdG9wdGlvbiIsImFkZG9uIjoiOUY0RTdDOWItOUIwNi00RTlELTkyQkQtMUZEMEEzQTJEN0Y4IiwidGllciI6InBhaWQiLCJpYXQiOiIxNzAwMDAwMDAwIiwiZXhwIjoiMTkwMDAwMDAwMCIsImRldmljZSI6IjZiZTA0MTJhNWRhYzBhNjNkNjg4YTlhNjA2MDhiMjI1N2M4MjkyYmI2NjM3MzhiOTUyYjliYmU1YTRmZjlmZGQiLCJqdGkiOiIxOGQ3NzRiNS0yYzY1LTQ4ZDktYmM2My0yMGUwYzNhMDg5M2EifQ.M3r1IhM1Uz2Kasg5P3bgByqZI_-pwYZAK55fxhTTg5Ad_nnz92Hx2Lh40ak_c1oBJuog9ZA4P1QAePXyspo49Q",
+    "expectValid": false,
+    "reason": "unknown signer"
+  }
+]
