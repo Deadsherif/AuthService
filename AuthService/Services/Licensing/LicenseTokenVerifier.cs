@@ -29,29 +29,38 @@ namespace AuthService.Services.Licensing
             var ec = LicensePublicKeys.Resolve(parsed.Header.Kid);
             if (ec == null) return new VerifyResult { Status = VerifyStatus.UnknownKey };
 
-            var parameters = new TokenValidationParameters
+            // LicensePublicKeys.Resolve returns a fresh ECDsa (wrapping a native CNG handle)
+            // on every call. Nothing here is cached or shared across calls (a fresh
+            // CryptoProviderFactory and ECDsaSecurityKey are also constructed per call below,
+            // with CacheSignatureProviders = false), so it is safe -- and necessary, to avoid
+            // leaking a native handle per Verify() call -- to dispose it once ValidateToken
+            // has returned and claims have been mapped from the already-parsed token.
+            using (ec)
             {
-                ValidateIssuer = false,
-                ValidateAudience = false,
-                ValidateLifetime = false, // we compare exp ourselves against injected 'now'
-                IssuerSigningKey = new ECDsaSecurityKey(ec)
+                var parameters = new TokenValidationParameters
                 {
-                    // Microsoft.IdentityModel caches signature providers keyed by the key's id.
-                    // Multiple vectors in this test suite share the same kid ("k1"), so without
-                    // disabling the cache, the 2nd+ ValidateToken call for that kid can reuse
-                    // (or throw ObjectDisposedException against) a stale cached provider.
-                    CryptoProviderFactory = new CryptoProviderFactory { CacheSignatureProviders = false }
-                },
-                ValidAlgorithms = new[] { "ES256" }
-            };
+                    ValidateIssuer = false,
+                    ValidateAudience = false,
+                    ValidateLifetime = false, // we compare exp ourselves against injected 'now'
+                    IssuerSigningKey = new ECDsaSecurityKey(ec)
+                    {
+                        // Microsoft.IdentityModel caches signature providers keyed by the key's id.
+                        // Multiple vectors in this test suite share the same kid ("k1"), so without
+                        // disabling the cache, the 2nd+ ValidateToken call for that kid can reuse
+                        // (or throw ObjectDisposedException against) a stale cached provider.
+                        CryptoProviderFactory = new CryptoProviderFactory { CacheSignatureProviders = false }
+                    },
+                    ValidAlgorithms = new[] { "ES256" }
+                };
 
-            try
-            {
-                new JwtSecurityTokenHandler().ValidateToken(jwt, parameters, out _);
-            }
-            catch
-            {
-                return new VerifyResult { Status = VerifyStatus.BadSignature };
+                try
+                {
+                    new JwtSecurityTokenHandler().ValidateToken(jwt, parameters, out _);
+                }
+                catch
+                {
+                    return new VerifyResult { Status = VerifyStatus.BadSignature };
+                }
             }
 
             var claims = LicenseClaims.FromJwtPayload(
