@@ -74,18 +74,12 @@
     <Compile Include="Auth.cs" />
     <Compile Include="Commands\RelayCommand.cs" />
     <Compile Include="MVVM\Models\ApiResponseGet.cs" />
-    <Compile Include="MVVM\Models\ApiResponsePost.cs" />
-    <Compile Include="MVVM\Models\EntitlementResponse.cs" />
     <Compile Include="MVVM\ViewModel\AuthViewModel.cs" />
     <Compile Include="MVVM\ViewModel\ViewModelBase.cs" />
 	  <Compile Include="MVVM\View\AuthWindow.xaml.cs">
 		  <DependentUpon>MVVM\View\AuthWindow.xaml</DependentUpon>
 	  </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Services\AdminApiClient.cs" />
-    <Compile Include="Services\ApiEndpoints.cs" />
-    <Compile Include="Services\AuthApiClient.cs" />
-    <Compile Include="Services\FirstOptionPremiseAuth.cs" />
     <Compile Include="Services\DateHelper.cs" />
     <Compile Include="Services\DateTimeConverter.cs" />
     <Compile Include="Services\SubscriptionService.cs" />

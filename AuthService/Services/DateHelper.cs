@@ -1,4 +1,3 @@
-using AuthService.MVVM.Models;
 using AuthService.MVVM.ViewModel;
 using System;
 using System.Net.Http;

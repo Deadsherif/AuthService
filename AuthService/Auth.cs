@@ -1,4 +1,3 @@
-using AuthService.MVVM.Models;
 using AuthService.MVVM.View;
 using AuthService.Services;
 using AuthService.Services.Licensing;
