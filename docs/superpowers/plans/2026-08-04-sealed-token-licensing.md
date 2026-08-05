@@ -1256,19 +1256,23 @@ git commit -m "feat: token-paste + fingerprint activation UX; fix async void"
 
 ---
 
-## Task 12: Fix remaining reliability bugs
+## Task 12: Reliability fixes + fold online time into the ratchet
 
 **Files:**
 - Modify: `AuthService/Services/SubscriptionService.cs` (`.GetAwaiter().GetResult()` → `await`)
-- Modify: `AuthService/Services/DateHelper.cs` (same)
-- Modify: `AuthService/Services/LocalAuthCache.cs:194` (`break` → `continue`)
-- Modify: `AuthService/MVVM/ViewModel/AuthViewModel.cs:168` (remove `GetTried = GetTried++`)
-- Test: `AuthService.Tests/MacListParsingTests.cs`
+- Modify: `AuthService/Services/DateHelper.cs` (sync-over-async fix + remove hardcoded ipgeolocation API key)
+- Modify: `AuthService/Services/LocalAuthCache.cs` (`break` → `continue` in `IsMacValid`)
+- Modify: `AuthService/MVVM/ViewModel/AuthViewModel.cs` (remove `GetTried = GetTried++` no-op)
+- Modify: `AuthService/Auth.cs` (add `OnlineTimeProvider` seam; fold online time into the gate's `now`)
+- Test: `AuthService.Tests/MacListParsingTests.cs`, `AuthService.Tests/OnlineTimeAnchorTests.cs`
 
 **Interfaces:**
-- Produces: `LocalAuthCache.IsMacValid` now accumulates all valid MACs (skips malformed) rather than truncating on first bad entry.
+- Produces: `LocalAuthCache.IsMacValid` accumulates all valid MACs (skips malformed) rather than truncating on the first bad entry.
+- Produces: `internal static Func<DateTimeOffset?> Auth.OnlineTimeProvider` — a best-effort trusted-online-time reading (null when unavailable). `ValidateAuth` passes `effectiveNow = max(NowProvider(), OnlineTimeProvider() ?? MinValue)` to `gate.Evaluate`, so a successful online reading anchors `maxDateSeen` to real time (a machine whose local clock lags real time still ratchets forward). Because the gate only ever takes the **max**, an untrusted/rolled-back local clock can never lower the effective time — this is why consuming these sources is safe.
 
-- [ ] **Step 1: Write failing test**
+### Part A — reliability bugs
+
+- [ ] **Step 1: Write failing test** (`MacListParsingTests`)
 ```csharp
 using System.Collections.Generic;
 using AuthService.Services;
@@ -1289,16 +1293,57 @@ public class MacListParsingTests
 
 - [ ] **Step 2: Run to verify it fails** → FAIL (`break` drops the good MAC).
 
-- [ ] **Step 3: Fix** — `break`→`continue` at [LocalAuthCache.cs:194](AuthService/Services/LocalAuthCache.cs); replace sync-over-async `.GetAwaiter().GetResult()` calls with `await ...ConfigureAwait(false)`; delete the `GetTried = GetTried++` self-assignment.
+- [ ] **Step 3: Fix** — `break`→`continue` in `IsMacValid`; replace sync-over-async `.GetAwaiter().GetResult()` calls in `SubscriptionService`/`DateHelper` with `await ...ConfigureAwait(false)`; delete the `GetTried = GetTried++` self-assignment; **remove the hardcoded ipgeolocation API key** from `DateHelper` (read it from `Environment.GetEnvironmentVariable("FIRSTOPTION_IPGEO_KEY")`, and simply skip that fallback source when the key is empty).
 
-- [ ] **Step 4: Run tests + full build + full test suite**
-Run: `dotnet test AuthService.Tests` → all PASS.
-Run: `dotnet build AuthService/AuthService.csproj` → all TFMs succeed.
+### Part B — fold online time into the ratchet (the deferred anti-rollback piece)
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Write failing test** (`OnlineTimeAnchorTests`) — with a valid stored token and an `OnlineTimeProvider` returning a time **later** than both the local clock and the stored `MaxDateSeen`, a `Valid` `ValidateAuth` advances the stored `MaxDateSeen` up to that online time.
+```csharp
+using System;
+using System.IO;
+using System.Text.Json;
+using AuthService;
+using AuthService.Services.Licensing;
+using Xunit;
+
+public class OnlineTimeAnchorTests
+{
+    [Fact]
+    public void OnlineTime_AnchorsRatchetForward()
+    {
+        var keys = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText("Vectors/keys.json"));
+        LicensePublicKeys.LoadForTests(keys.GetProperty("kid").GetString(), keys.GetProperty("publicKeyPem").GetString());
+        var vectors = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText("Vectors/vectors.json"));
+        string token = null;
+        foreach (var v in vectors.EnumerateArray())
+            if (v.GetProperty("name").GetString() == "valid") token = v.GetProperty("token").GetString();
+
+        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+        var store = new LicenseStore(path);
+        store.Write(new StoredLicense { Token = token, MaxDateSeen = DateTimeOffset.FromUnixTimeSeconds(1_750_000_000) });
+
+        Auth.GateFactory = _ => new LicenseGate(new LicenseStore(path));
+        Auth.NowProvider = () => DateTimeOffset.FromUnixTimeSeconds(1_760_000_000);      // local clock
+        Auth.OnlineTimeProvider = () => DateTimeOffset.FromUnixTimeSeconds(1_800_000_000); // higher trusted reading (< exp 1.9e9)
+        Auth.DeviceProvider = () => "TEST-DEVICE";
+
+        var status = Auth.ValidateAuth("Addin", "9F4E7C9b-9B06-4E9D-92BD-1FD0A3A2D7F8").GetAwaiter().GetResult();
+        Assert.Equal(SubscriptionService.SubscriptionStatus.Valid, status);
+        Assert.Equal(1_800_000_000, store.Read().MaxDateSeen.ToUnixTimeSeconds()); // anchored to online time, not local 1.76e9
+    }
+}
+```
+
+- [ ] **Step 5: Implement** — add `internal static Func<DateTimeOffset?> OnlineTimeProvider` to `Auth` (production default: a best-effort call into `DateHelper` returning null on failure — never throws, never blocks longer than the existing DateHelper timeout). In `ValidateAuth`, compute `var online = OnlineTimeProvider(); var effectiveNow = online.HasValue && online.Value > NowProvider() ? online.Value : NowProvider();` and pass `effectiveNow` to `gate.Evaluate`. Do not change the gate.
+
+- [ ] **Step 6: Run tests + 3-config build**
+Run: `dotnet test AuthService.Tests` → all PASS (incl. both new tests).
+Run each config explicitly: `dotnet build AuthService/AuthService.csproj -c "Net Framework 4.7"` / `-c "Net Framework 4.8.1"` / `-c "Net8.0-windows"` → all succeed.
+
+- [ ] **Step 7: Commit**
 ```bash
-git add AuthService/Services AuthService/MVVM AuthService.Tests/MacListParsingTests.cs
-git commit -m "fix: mac-list truncation, sync-over-async, no-op self-assign"
+git add AuthService/Services AuthService/MVVM AuthService/Auth.cs AuthService.Tests/MacListParsingTests.cs AuthService.Tests/OnlineTimeAnchorTests.cs
+git commit -m "fix: reliability bugs; fold online time into anti-rollback ratchet"
 ```
 
 ---
