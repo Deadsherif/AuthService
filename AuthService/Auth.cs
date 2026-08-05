@@ -1,6 +1,7 @@
 using AuthService.MVVM.Models;
 using AuthService.MVVM.View;
 using AuthService.Services;
+using AuthService.Services.Licensing;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,6 +23,12 @@ namespace AuthService
         public static bool IsGetResponseNull { get; set; } = true;
         public static int Tried { get; set; } = 0;
         public static event EventHandler<BackgroundValidationFailedEventArgs> BackgroundValidationFailed;
+
+        // Injectable seams for testing: production defaults construct a real gate over the
+        // on-disk license store, the real wall clock, and the real machine-GUID device id.
+        internal static Func<string, LicenseGate> GateFactory = addinId => new LicenseGate(LicenseStore.Default());
+        internal static Func<DateTimeOffset> NowProvider = () => DateTimeOffset.UtcNow;
+        internal static Func<string> DeviceProvider = DeviceFingerprint.CurrentDeviceId;
 
         public Auth(string addinName, string addinID)
             : this(addinName, addinID, new Window())
@@ -58,10 +65,11 @@ namespace AuthService
 
         public static async Task<SubscriptionService.SubscriptionStatus> ValidateAuth(string addinName, string addinID, string signupLink = null)
         {
-            if (HasCacheEntry(addinID))
+            var gate = GateFactory(addinID);
+            var status = gate.Evaluate(addinID, DeviceProvider(), NowProvider());
+            if (status == GateStatus.Valid)
             {
                 SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.Valid);
-                _ = Task.Run(() => StartBackgroundRevalidation(addinName, addinID));
                 return SubscriptionStatus.Valid;
             }
 
@@ -160,17 +168,6 @@ namespace AuthService
 
             DateTime currentDate = await DateHelper.GetCurrentDateFromWebAsync().ConfigureAwait(false);
             return await LocalAuthCache.SilentAuth(entry, currentDate).ConfigureAwait(false);
-        }
-
-        private static bool HasCacheEntry(string addinID)
-        {
-            var cache = LocalAuthCache.ReadCache();
-            if (cache == null)
-            {
-                return false;
-            }
-
-            return cache.Entries.ContainsKey(addinID);
         }
 
         public static async Task<SubscriptionService.SubscriptionStatus> ValidateEntitlement(string appId, string userId, string addinName, string addinID)

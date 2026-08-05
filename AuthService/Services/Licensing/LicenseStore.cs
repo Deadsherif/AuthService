@@ -15,6 +15,17 @@ namespace AuthService.Services.Licensing
         private readonly string _path;
         public LicenseStore(string path) { _path = path; }
 
+        // Production default: a dedicated license file under the same LocalApplicationData
+        // root LocalAuthCache uses, kept in its own subfolder so it never collides with the
+        // legacy forgeable cache file (which is being phased out by the license gate).
+        public static LicenseStore Default()
+        {
+            var dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "FirstOption", "AuthService");
+            return new LicenseStore(Path.Combine(dir, "license.json"));
+        }
+
         public StoredLicense Read()
         {
             try { return File.Exists(_path) ? JsonSerializer.Deserialize<StoredLicense>(File.ReadAllText(_path)) : null; }
