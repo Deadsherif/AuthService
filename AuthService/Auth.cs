@@ -86,10 +86,7 @@ namespace AuthService
         public static async Task<SubscriptionService.SubscriptionStatus> ValidateAuth(string addinName, string addinID, string signupLink = null)
         {
             var gate = GateFactory(addinID);
-            var now = NowProvider();
-            var online = OnlineTimeProvider();
-            var effectiveNow = (online.HasValue && online.Value > now) ? online.Value : now;
-            var status = gate.Evaluate(addinID, DeviceProvider(), effectiveNow);
+            var status = gate.Evaluate(addinID, DeviceProvider(), NowProvider(), OnlineTimeProvider());
             if (status == GateStatus.Valid)
             {
                 SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.Valid);

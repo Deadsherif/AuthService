@@ -8,8 +8,12 @@ using Xunit;
 
 public class OnlineTimeAnchorTests
 {
+    // Online time is used for expiry DETECTION only and must never be persisted into the
+    // anti-rollback ratchet. A higher online reading must not anchor MaxDateSeen forward past
+    // the local clock — otherwise a single bogus/future online reading would permanently
+    // self-lock every later honest run (now < MaxDateSeen -> Rollback forever).
     [Fact]
-    public void OnlineTime_AnchorsRatchetForward()
+    public void OnlineTime_DetectsButDoesNotPersistToRatchet()
     {
         var keys = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText("Vectors/keys.json"));
         LicensePublicKeys.LoadForTests(keys.GetProperty("kid").GetString(), keys.GetProperty("publicKeyPem").GetString());
@@ -24,11 +28,11 @@ public class OnlineTimeAnchorTests
 
         Auth.GateFactory = _ => new LicenseGate(new LicenseStore(path));
         Auth.NowProvider = () => DateTimeOffset.FromUnixTimeSeconds(1_760_000_000);      // local clock
-        Auth.OnlineTimeProvider = () => DateTimeOffset.FromUnixTimeSeconds(1_800_000_000); // higher trusted reading (< exp 1.9e9)
+        Auth.OnlineTimeProvider = () => DateTimeOffset.FromUnixTimeSeconds(1_800_000_000); // higher untrusted reading (< exp 1.9e9)
         Auth.DeviceProvider = () => "TEST-DEVICE";
 
         var status = Auth.ValidateAuth("Addin", "9F4E7C9b-9B06-4E9D-92BD-1FD0A3A2D7F8").GetAwaiter().GetResult();
         Assert.Equal(SubscriptionService.SubscriptionStatus.Valid, status);
-        Assert.Equal(1_800_000_000, store.Read().MaxDateSeen.ToUnixTimeSeconds()); // anchored to online time, not local 1.76e9
+        Assert.Equal(1_760_000_000, store.Read().MaxDateSeen.ToUnixTimeSeconds()); // reflects LOCAL clock, not online 1.8e9
     }
 }

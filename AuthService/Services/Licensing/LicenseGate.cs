@@ -11,13 +11,15 @@ namespace AuthService.Services.Licensing
 
         public LicenseGate(LicenseStore store) { _store = store; }
 
-        public GateStatus Evaluate(string addinId, string currentDeviceId, DateTimeOffset now)
+        public GateStatus Evaluate(string addinId, string currentDeviceId, DateTimeOffset now, DateTimeOffset? onlineNow = null)
         {
             var stored = _store.Read();
             if (stored == null) return GateStatus.Invalid;
 
             // Rollback vs the highest date ever persisted (cheap, pre-verify — also rejects
-            // a garbage token whose clock is rolled back without doing crypto work).
+            // a garbage token whose clock is rolled back without doing crypto work). Uses the
+            // LOCAL clock only: an untrusted online reading must never influence what counts
+            // as a rollback, or a bogus source could brick the ratchet.
             if (now < stored.MaxDateSeen) return GateStatus.Rollback;
 
             // Signature must verify. The verifier reports Expired using the raw clock, but the
@@ -30,16 +32,19 @@ namespace AuthService.Services.Licensing
             var claims = result.Claims;
 
             // iat floor: "now" can never legitimately precede the moment the token was signed.
+            // LOCAL clock only, same reasoning as the rollback check above.
             var floor = stored.MaxDateSeen;
             if (claims.IssuedAt > floor) floor = claims.IssuedAt;
             if (now < floor) return GateStatus.Rollback;
 
-            // Decide expiry against the ratchet max, never the raw clock, so a rolled-back
-            // clock can never un-expire a token. The iat-floor check above already guarantees
-            // now >= floor here, so this ternary is defensive: it still picks the correct
-            // (larger) value even if that check were ever reordered or removed.
-            var effectiveNow = now > floor ? now : floor;
-            if (effectiveNow > claims.Expires) return GateStatus.Invalid;
+            // Expiry detection may additionally consider an untrusted online time reading, but
+            // ONLY here — never for rollback/floor/persist above. This lets a bogus/attacker-
+            // controlled online source detect (or falsely claim) expiry without ever being able
+            // to ratchet the persisted MaxDateSeen forward, which would otherwise let a single
+            // bad reading permanently self-lock every future honest run.
+            var expiryTime = now > floor ? now : floor;
+            if (onlineNow.HasValue && onlineNow.Value > expiryTime) expiryTime = onlineNow.Value;
+            if (expiryTime > claims.Expires) return GateStatus.Invalid;
 
             if (!string.Equals(claims.AddonId, addinId, StringComparison.OrdinalIgnoreCase))
                 return GateStatus.Invalid;
