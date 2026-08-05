@@ -76,7 +76,6 @@
     <Compile Include="MVVM\Models\ApiResponseGet.cs" />
     <Compile Include="MVVM\Models\ApiResponsePost.cs" />
     <Compile Include="MVVM\Models\EntitlementResponse.cs" />
-    <Compile Include="MVVM\Models\LocalCache.cs" />
     <Compile Include="MVVM\ViewModel\AuthViewModel.cs" />
     <Compile Include="MVVM\ViewModel\ViewModelBase.cs" />
 	  <Compile Include="MVVM\View\AuthWindow.xaml.cs">
@@ -89,7 +88,6 @@
     <Compile Include="Services\FirstOptionPremiseAuth.cs" />
     <Compile Include="Services\DateHelper.cs" />
     <Compile Include="Services\DateTimeConverter.cs" />
-    <Compile Include="Services\LocalAuthCache.cs" />
     <Compile Include="Services\SubscriptionService.cs" />
     <Compile Include="Services\Validiation.cs" />
     <Compile Include="Services\Licensing\LicenseClaims.cs" />
