@@ -613,7 +613,9 @@ git commit -m "feat: ES256 license token verifier"
 
 ---
 
-## Task 5: Device fingerprint (composite + tolerant match)
+## Task 5: Device fingerprint (machine-GUID exact match)
+
+**Design note (supersedes the original composite-fuzzy design):** Fuzzy "tolerate one changed component" matching over a single joint SHA-256 hash is cryptographically impossible (preimage resistance — no subset of *changed* current values reproduces a hash of the *original* values). Instead bind to the **Windows MachineGuid**, a stable per-install identifier that survives NIC swaps, docking, VPN, and disk changes, and match it **exactly**. This achieves the low-false-lockout goal by binding to something stable rather than by tolerating drift. The token `device` claim stays `SHA-256(deviceId)` — the contract and the committed vectors (which hash the single string `"TEST-DEVICE"`) are unchanged.
 
 **Files:**
 - Create: `AuthService/Services/Licensing/DeviceFingerprint.cs`
@@ -622,12 +624,13 @@ git commit -m "feat: ES256 license token verifier"
 
 **Interfaces:**
 - Produces:
-  - `static class DeviceFingerprint { static string[] Components(); static string Hash(string[] components); static bool Matches(string tokenHash, string[] currentComponents, int minAgree = 3); }`
-  - `Hash` = SHA-256 hex over the sorted joined components.
-  - `Matches` recomputes with subsets; passes if any subset of size ≥ `minAgree` hashes to `tokenHash`. For the "all present" case it equals a direct hash compare.
-- Note: the `device` claim binds to `Hash(Components())`. `Components()` gathers machine GUID (registry `MachineGuid`), volume serial, and MAC; on non-Windows test host, unavailable components are omitted.
+  - `static class DeviceFingerprint { static string CurrentDeviceId(); static string Hash(string deviceId); static bool Matches(string tokenHash, string currentDeviceId); }`
+  - `Hash(deviceId)` = lowercase-hex SHA-256 of the exact UTF-8 bytes of `deviceId`.
+  - `Matches(tokenHash, currentDeviceId)` = ordinal-ignore-case equality of `Hash(currentDeviceId)` and `tokenHash`; returns `false` if `currentDeviceId` is null/empty.
+  - `CurrentDeviceId()` returns the Windows MachineGuid (registry `HKLM\SOFTWARE\Microsoft\Cryptography\MachineGuid`), or `""` if unreadable.
+- Continuity: `Hash("TEST-DEVICE")` MUST equal `6be0412a5dac0a63d688a9a60608b2257c8292bb663738b952b9bbe5a4ff9fdd` (the committed vectors' `device` value). Assert this.
 
-- [ ] **Step 1: Write failing test** (deterministic, no real hardware)
+- [ ] **Step 1: Write failing tests**
 
 ```csharp
 using AuthService.Services.Licensing;
@@ -636,20 +639,27 @@ using Xunit;
 public class DeviceFingerprintTests
 {
     [Fact]
-    public void Hash_IsStableAndOrderIndependent()
+    public void Hash_OfTestDevice_MatchesCommittedVector()
     {
-        var a = DeviceFingerprint.Hash(new[] { "guid-x", "vol-y", "mac-z" });
-        var b = DeviceFingerprint.Hash(new[] { "mac-z", "guid-x", "vol-y" });
-        Assert.Equal(a, b);
+        Assert.Equal(
+            "6be0412a5dac0a63d688a9a60608b2257c8292bb663738b952b9bbe5a4ff9fdd",
+            DeviceFingerprint.Hash("TEST-DEVICE"));
     }
 
     [Fact]
-    public void Matches_ToleratesOneChangedComponent()
+    public void Matches_SameId_True_DifferentId_False()
     {
-        var original = new[] { "guid-x", "vol-y", "mac-z" };
-        var token = DeviceFingerprint.Hash(original);
-        var changedMac = new[] { "guid-x", "vol-y", "mac-DIFFERENT" };
-        Assert.True(DeviceFingerprint.Matches(token, changedMac, minAgree: 2));
+        var token = DeviceFingerprint.Hash("machine-guid-abc");
+        Assert.True(DeviceFingerprint.Matches(token, "machine-guid-abc"));
+        Assert.False(DeviceFingerprint.Matches(token, "machine-guid-XYZ"));
+    }
+
+    [Fact]
+    public void Matches_NullOrEmptyCurrentId_False()
+    {
+        var token = DeviceFingerprint.Hash("machine-guid-abc");
+        Assert.False(DeviceFingerprint.Matches(token, null));
+        Assert.False(DeviceFingerprint.Matches(token, ""));
     }
 }
 ```
@@ -661,8 +671,6 @@ public class DeviceFingerprintTests
 `AuthService/Services/Licensing/DeviceFingerprint.cs`:
 ```csharp
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -670,78 +678,28 @@ namespace AuthService.Services.Licensing
 {
     public static class DeviceFingerprint
     {
-        public static string Hash(string[] components)
+        public static string Hash(string deviceId)
         {
-            var joined = string.Join("|", components.Where(c => !string.IsNullOrEmpty(c)).OrderBy(c => c, StringComparer.Ordinal));
+            if (deviceId == null) deviceId = string.Empty;
             using (var sha = SHA256.Create())
-                return ToHex(sha.ComputeHash(Encoding.UTF8.GetBytes(joined)));
+                return ToHex(sha.ComputeHash(Encoding.UTF8.GetBytes(deviceId)));
         }
 
-        public static bool Matches(string tokenHash, string[] currentComponents, int minAgree = 3)
+        public static bool Matches(string tokenHash, string currentDeviceId)
         {
-            var present = currentComponents.Where(c => !string.IsNullOrEmpty(c)).ToArray();
-            for (int size = present.Length; size >= minAgree; size--)
-                foreach (var subset in Combinations(present, size))
-                    if (string.Equals(Hash(subset), tokenHash, StringComparison.OrdinalIgnoreCase))
-                        return true;
-            return false;
+            if (string.IsNullOrEmpty(currentDeviceId) || string.IsNullOrEmpty(tokenHash))
+                return false;
+            return string.Equals(Hash(currentDeviceId), tokenHash, StringComparison.OrdinalIgnoreCase);
         }
 
-        public static string[] Components()
+        public static string CurrentDeviceId()
         {
-            var list = new List<string>();
-            TryAdd(list, ReadMachineGuid());
-            TryAdd(list, ReadVolumeSerial());
-            TryAdd(list, ReadPrimaryMac());
-            return list.ToArray();
-        }
-
-        private static void TryAdd(List<string> l, string v) { if (!string.IsNullOrWhiteSpace(v)) l.Add(v); }
-
-        private static string ReadMachineGuid()
-        {
-#if _NET_47 || _NET_481
-            try {
-                using (var k = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Cryptography"))
-                    return k?.GetValue("MachineGuid") as string;
-            } catch { return null; }
-#else
-            try {
-                using (var k = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Cryptography"))
-                    return k?.GetValue("MachineGuid") as string;
-            } catch { return null; }
-#endif
-        }
-
-        private static string ReadVolumeSerial()
-        {
-            try {
-                var root = System.IO.Path.GetPathRoot(Environment.SystemDirectory);
-                var drive = new System.IO.DriveInfo(root);
-                return drive.IsReady ? drive.VolumeLabel + ":" + root : null;
-            } catch { return null; }
-        }
-
-        private static string ReadPrimaryMac()
-        {
-            try {
-                return SubscriptionService.GetCurrentMacAddress();
-            } catch { return null; }
-        }
-
-        private static IEnumerable<string[]> Combinations(string[] items, int k)
-        {
-            if (k == items.Length) { yield return items; yield break; }
-            var idx = Enumerable.Range(0, k).ToArray();
-            while (true)
+            try
             {
-                yield return idx.Select(i => items[i]).ToArray();
-                int p = k - 1;
-                while (p >= 0 && idx[p] == items.Length - k + p) p--;
-                if (p < 0) yield break;
-                idx[p]++;
-                for (int j = p + 1; j < k; j++) idx[j] = idx[j - 1] + 1;
+                using (var k = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Cryptography"))
+                    return (k?.GetValue("MachineGuid") as string) ?? string.Empty;
             }
+            catch { return string.Empty; }
         }
 
         private static string ToHex(byte[] b)
@@ -753,15 +711,15 @@ namespace AuthService.Services.Licensing
     }
 }
 ```
-Add `<Compile Include="Services\Licensing\DeviceFingerprint.cs" />`.
+Add `<Compile Include="Services\Licensing\DeviceFingerprint.cs" />`. (Registry read compiles on all three TFMs — no `#if` needed.)
 
-- [ ] **Step 4: Run tests + build** → PASS; multi-target build succeeds.
+- [ ] **Step 4: Run tests + build** → PASS; multi-target build succeeds (build each config explicitly with `-c`).
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add AuthService/Services/Licensing/DeviceFingerprint.cs AuthService/AuthService.csproj AuthService.Tests/DeviceFingerprintTests.cs
-git commit -m "feat: composite tolerant device fingerprint"
+git commit -m "feat: machine-GUID device fingerprint (exact match)"
 ```
 
 ---
@@ -931,7 +889,7 @@ git commit -m "feat: plaintext tamper-evident license store"
 - Consumes: `LicenseTokenVerifier`, `DeviceFingerprint`, `RollbackRatchet`, `LicenseStore`, `LicenseClaims`.
 - Produces:
   - `enum GateStatus { Valid, Invalid, Rollback }`
-  - `class LicenseGate { GateStatus Evaluate(string addinId, string[] deviceComponents, DateTimeOffset now); }` — reads store, checks ratchet, verifies token, checks `addon`==addinId and device match, advances+persists ratchet on success.
+  - `class LicenseGate { GateStatus Evaluate(string addinId, string currentDeviceId, DateTimeOffset now); }` — reads store, checks ratchet, verifies token, checks `addon`==addinId and exact device match, advances+persists ratchet on success.
 - This is the single entry point `Auth.cs` will call.
 
 - [ ] **Step 1: Write failing test** (uses the valid vector; construct a store pointing at a temp file seeded with that token, and the TEST-DEVICE component)
@@ -961,7 +919,7 @@ public class LicenseGateTests
         var gate = new LicenseGate(new LicenseStore(path));
         var status = gate.Evaluate(
             "9F4E7C9b-9B06-4E9D-92BD-1FD0A3A2D7F8",
-            new[] { "TEST-DEVICE" },
+            "TEST-DEVICE",
             DateTimeOffset.FromUnixTimeSeconds(1_750_000_000));
 
         Assert.Equal(GateStatus.Valid, status);
@@ -973,11 +931,26 @@ public class LicenseGateTests
         var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
         new LicenseStore(path).Write(new StoredLicense { Token = "x", MaxDateSeen = DateTimeOffset.FromUnixTimeSeconds(1_800_000_000) });
         var gate = new LicenseGate(new LicenseStore(path));
-        Assert.Equal(GateStatus.Rollback, gate.Evaluate("any", new[] { "TEST-DEVICE" }, DateTimeOffset.FromUnixTimeSeconds(1_700_000_000)));
+        Assert.Equal(GateStatus.Rollback, gate.Evaluate("any", "TEST-DEVICE", DateTimeOffset.FromUnixTimeSeconds(1_700_000_000)));
+    }
+
+    [Fact]
+    public void WrongDevice_IsRejected()
+    {
+        var keys = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText("Vectors/keys.json"));
+        LicensePublicKeys.LoadForTests(keys.GetProperty("kid").GetString(), keys.GetProperty("publicKeyPem").GetString());
+        var vectors = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText("Vectors/vectors.json"));
+        string token = null;
+        foreach (var v in vectors.EnumerateArray())
+            if (v.GetProperty("name").GetString() == "valid") token = v.GetProperty("token").GetString();
+        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+        new LicenseStore(path).Write(new StoredLicense { Token = token, MaxDateSeen = DateTimeOffset.FromUnixTimeSeconds(1_700_000_000) });
+        var gate = new LicenseGate(new LicenseStore(path));
+        Assert.Equal(GateStatus.Invalid, gate.Evaluate(
+            "9F4E7C9b-9B06-4E9D-92BD-1FD0A3A2D7F8", "SOME-OTHER-MACHINE", DateTimeOffset.FromUnixTimeSeconds(1_750_000_000)));
     }
 }
 ```
-> The device-match test uses `minAgree: 1` internally because the vector binds a single component. `LicenseGate` passes `minAgree: 1` when only one component is present, else the default 3. Encode that rule in the implementation.
 
 - [ ] **Step 2: Run to verify it fails** → FAIL.
 
@@ -996,7 +969,7 @@ namespace AuthService.Services.Licensing
 
         public LicenseGate(LicenseStore store) { _store = store; }
 
-        public GateStatus Evaluate(string addinId, string[] deviceComponents, DateTimeOffset now)
+        public GateStatus Evaluate(string addinId, string currentDeviceId, DateTimeOffset now)
         {
             var stored = _store.Read();
             if (stored == null) return GateStatus.Invalid;
@@ -1010,8 +983,7 @@ namespace AuthService.Services.Licensing
             if (!string.Equals(result.Claims.AddonId, addinId, StringComparison.OrdinalIgnoreCase))
                 return GateStatus.Invalid;
 
-            int minAgree = deviceComponents.Length <= 1 ? 1 : 3;
-            if (!DeviceFingerprint.Matches(result.Claims.DeviceHash, deviceComponents, minAgree))
+            if (!DeviceFingerprint.Matches(result.Claims.DeviceHash, currentDeviceId))
                 return GateStatus.Invalid;
 
             _store.Write(new StoredLicense { Token = stored.Token, MaxDateSeen = ratchet.Advance(now).MaxDateSeen });
@@ -1120,7 +1092,7 @@ public class AuthValidateTests
 
         Auth.GateFactory = _ => new LicenseGate(new LicenseStore(path));
         Auth.NowProvider = () => DateTimeOffset.FromUnixTimeSeconds(1_750_000_000);
-        Auth.DeviceProvider = () => new[] { "TEST-DEVICE" };
+        Auth.DeviceProvider = () => "TEST-DEVICE";
 
         var status = await Auth.ValidateAuth("Addin", "9F4E7C9b-9B06-4E9D-92BD-1FD0A3A2D7F8");
         Assert.Equal(SubscriptionService.SubscriptionStatus.Valid, status);
@@ -1135,7 +1107,7 @@ public class AuthValidateTests
 ```csharp
 internal static Func<string, LicenseGate> GateFactory = addinId => new LicenseGate(LicenseStore.Default());
 internal static Func<DateTimeOffset> NowProvider = () => DateTimeOffset.UtcNow;
-internal static Func<string[]> DeviceProvider = DeviceFingerprint.Components;
+internal static Func<string> DeviceProvider = DeviceFingerprint.CurrentDeviceId;
 ```
 - Add `LicenseStore.Default()` static that returns a store at the existing cache directory path.
 - Replace the body of `ValidateAuth` so it:
@@ -1196,7 +1168,7 @@ public class ActivationViewModelTests
         {
             TokenStoreOverride = new LicenseStore(path),
             NowOverride = DateTimeOffset.FromUnixTimeSeconds(1_750_000_000),
-            DeviceOverride = new[] { "TEST-DEVICE" },
+            DeviceOverride = "TEST-DEVICE",
             PastedToken = token
         };
 
@@ -1211,8 +1183,8 @@ public class ActivationViewModelTests
 - [ ] **Step 2: Run to verify it fails** → FAIL.
 
 - [ ] **Step 3: Implement**
-- Add the test seams (`TokenStoreOverride`, `NowOverride`, `DeviceOverride`) with production defaults.
-- Add `DeviceFingerprintDisplay` = short prefix of `DeviceFingerprint.Hash(DeviceFingerprint.Components())`.
+- Add the test seams (`TokenStoreOverride`, `NowOverride`, `DeviceOverride` as `string`) with production defaults (`DeviceOverride` defaults to `DeviceFingerprint.CurrentDeviceId()`).
+- Add `DeviceFingerprintDisplay` = short prefix of `DeviceFingerprint.Hash(DeviceFingerprint.CurrentDeviceId())`.
 - Add `PastedToken` + `ActivateTokenCommand` that runs the gate against a store seeded with the pasted token (or verifies directly then writes on success).
 - Convert `ExecuteSubmit` to `async Task ExecuteSubmitCore()` wrapped by `async void ExecuteSubmit(object o){ try { await ExecuteSubmitCore(); } catch (Exception ex) { Status = "Activation error"; } }`.
 - In `AuthWindow.xaml`, add a "Paste license token" TextBox bound to `PastedToken`, an "Activate" button bound to `ActivateTokenCommand`, and a read-only fingerprint label bound to `DeviceFingerprintDisplay`.
