@@ -47,11 +47,25 @@ All of this is client-side and ships on our own schedule. No backend dependency.
 - The stored artifact becomes the signed token itself — **not encrypted** (it is tamper-evident by signature, and it is not secret). Retire the AES key/IV and encrypt/decrypt code in `LocalAuthCache`.
 - Store `maxDateSeen` alongside the token.
 
-**Anti-rollback (time)**
-- Ratchet: persist `maxDateSeen`; if the clock reads earlier than it, treat as expired / force re-activation. Advance it on each run and whenever an online, trustworthy time is available.
+**Anti-rollback (time) — needs nothing from the marketplace**
+
+The token gives two sealed, trustworthy time facts: `exp` (expiry) and `iat` (issued-at). `iat` is a hard **floor** — "now" can never legitimately be earlier than the moment the token was signed.
+
+Construction:
+- Seed `maxDateSeen = iat` at install.
+- Each run: `maxDateSeen = max(maxDateSeen, iat, localClock, every successful online time reading)`. The ratchet only ever moves **forward**.
+- Compare `maxDateSeen` (not the raw clock) against `exp` for the expiry decision.
+
+Why untrusted time sources are safe to consume: because the ratchet takes the **max**, a lying source can't help an attacker — a fake *earlier* time is ignored (max keeps the higher value), and a fake *later* time only expires the attacker's own token sooner. So the marketplace does **not** need to serve a cryptographically trusted clock.
+
+Reuse the existing `DateHelper` online fetches (marketplace redemption `time`, aisenseapi, ipgeolocation) as ratchet inputs — more independent sources is strictly better here. The **fix** is: never treat the `DateTime.Now` fallback as authoritative (today it is returned and trusted, which is the hole); the local clock may only push the ratchet forward, never justify a "now" below the floor.
+
+Residual limit: an attacker who **freezes the clock and stays permanently offline** keeps the ratchet frozen and the token alive until `exp`. Internet closes this — any online moment re-anchors `maxDateSeen` to the real date. A signed time endpoint (Part 3 wishlist) would additionally defend against an attacker who MITMs their own outbound HTTPS; not needed for the realistic threat model.
+
+Hygiene (same file): remove the hardcoded ipgeolocation API key (shipped secret — rotate it) and fix the `.GetAwaiter().GetResult()` sync-over-async.
 
 **Device identity**
-- Replace MAC-only (`GetCurrentMacAddress`) with a **composite, fuzzy fingerprint** (machine GUID + volume serial + CPU/BIOS id), hashed. Match with tolerance (e.g. majority of components agree) to stop false lockouts from a single changed component.
+- Replace MAC-only (`GetCurrentMacAddress`) with binding to the **Windows MachineGuid** (a stable per-install id), matched **exactly** (`device` claim = hex SHA-256(MachineGuid)). A composite "fuzzy" fingerprint was rejected: fuzzy tolerance over a single joint SHA-256 hash is cryptographically impossible (preimage resistance), and binding to a stable identifier achieves the low-false-lockout goal directly — MachineGuid survives NIC swaps, docking, VPN, and disk changes, changing only on OS reinstall/sysprep (which costs one re-activation).
 
 **Activation UX (Auth window)**
 - **Online path:** customer pastes the short purchase code → add-in calls the mint endpoint → receives and stores the token.

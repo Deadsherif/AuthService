@@ -889,8 +889,9 @@ git commit -m "feat: plaintext tamper-evident license store"
 - Consumes: `LicenseTokenVerifier`, `DeviceFingerprint`, `RollbackRatchet`, `LicenseStore`, `LicenseClaims`.
 - Produces:
   - `enum GateStatus { Valid, Invalid, Rollback }`
-  - `class LicenseGate { GateStatus Evaluate(string addinId, string currentDeviceId, DateTimeOffset now); }` — reads store, checks ratchet, verifies token, checks `addon`==addinId and exact device match, advances+persists ratchet on success.
+  - `class LicenseGate { GateStatus Evaluate(string addinId, string currentDeviceId, DateTimeOffset now); }` — reads store, checks rollback, verifies signature, applies the **`iat` floor** and decides **expiry against the ratchet max** (not the raw clock), checks `addon`==addinId and exact device match, advances+persists the ratchet on success.
 - This is the single entry point `Auth.cs` will call.
+- **Anti-rollback model (iat floor):** the token's signed `iat` is a hard lower bound — "now" can never legitimately precede the moment the token was signed. So the effective floor is `max(stored.MaxDateSeen, iat)`; a clock below the floor is `Rollback`, and expiry is decided against `max(now, floor)` so a rolled-back clock can never un-expire a token. The verifier still reports `Expired` using raw `now`, but the gate is the authority on expiry — it accepts both `Valid` and `Expired` from the verifier as "signature verified, claims trustworthy" and re-decides expiry itself. (Feeding online time readings into the ratchet is deferred to Task 12.)
 
 - [ ] **Step 1: Write failing test** (uses the valid vector; construct a store pointing at a temp file seeded with that token, and the TEST-DEVICE component)
 ```csharp
@@ -949,6 +950,42 @@ public class LicenseGateTests
         Assert.Equal(GateStatus.Invalid, gate.Evaluate(
             "9F4E7C9b-9B06-4E9D-92BD-1FD0A3A2D7F8", "SOME-OTHER-MACHINE", DateTimeOffset.FromUnixTimeSeconds(1_750_000_000)));
     }
+
+    // iat floor: MaxDateSeen (1.68e9) is below the token's iat (1.70e9). A clock at 1.69e9
+    // is above MaxDateSeen but below the iat floor → Rollback. (valid vector: iat=1_700_000_000)
+    [Fact]
+    public void ClockBelowIatFloor_IsRollback()
+    {
+        var keys = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText("Vectors/keys.json"));
+        LicensePublicKeys.LoadForTests(keys.GetProperty("kid").GetString(), keys.GetProperty("publicKeyPem").GetString());
+        var vectors = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText("Vectors/vectors.json"));
+        string token = null;
+        foreach (var v in vectors.EnumerateArray())
+            if (v.GetProperty("name").GetString() == "valid") token = v.GetProperty("token").GetString();
+        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+        new LicenseStore(path).Write(new StoredLicense { Token = token, MaxDateSeen = DateTimeOffset.FromUnixTimeSeconds(1_680_000_000) });
+        var gate = new LicenseGate(new LicenseStore(path));
+        Assert.Equal(GateStatus.Rollback, gate.Evaluate(
+            "9F4E7C9b-9B06-4E9D-92BD-1FD0A3A2D7F8", "TEST-DEVICE", DateTimeOffset.FromUnixTimeSeconds(1_690_000_000)));
+    }
+
+    // Expiry is decided against the ratchet max: an honest clock past exp rejects the token.
+    // (valid vector: exp=1_900_000_000)
+    [Fact]
+    public void PastExpiry_IsInvalid()
+    {
+        var keys = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText("Vectors/keys.json"));
+        LicensePublicKeys.LoadForTests(keys.GetProperty("kid").GetString(), keys.GetProperty("publicKeyPem").GetString());
+        var vectors = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText("Vectors/vectors.json"));
+        string token = null;
+        foreach (var v in vectors.EnumerateArray())
+            if (v.GetProperty("name").GetString() == "valid") token = v.GetProperty("token").GetString();
+        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+        new LicenseStore(path).Write(new StoredLicense { Token = token, MaxDateSeen = DateTimeOffset.FromUnixTimeSeconds(1_700_000_000) });
+        var gate = new LicenseGate(new LicenseStore(path));
+        Assert.Equal(GateStatus.Invalid, gate.Evaluate(
+            "9F4E7C9b-9B06-4E9D-92BD-1FD0A3A2D7F8", "TEST-DEVICE", DateTimeOffset.FromUnixTimeSeconds(2_000_000_000)));
+    }
 }
 ```
 
@@ -974,19 +1011,39 @@ namespace AuthService.Services.Licensing
             var stored = _store.Read();
             if (stored == null) return GateStatus.Invalid;
 
-            var ratchet = new RollbackRatchet { MaxDateSeen = stored.MaxDateSeen };
-            if (ratchet.IsRollback(now)) return GateStatus.Rollback;
+            // Rollback vs the highest date ever persisted (cheap, pre-verify — also rejects
+            // a garbage token whose clock is rolled back without doing crypto work).
+            if (now < stored.MaxDateSeen) return GateStatus.Rollback;
 
+            // Signature must verify. The verifier reports Expired using the raw clock, but the
+            // gate is the authority on expiry (below) — so both Valid and Expired mean "signature
+            // verified, claims trustworthy". Anything else (BadSignature/Malformed/UnknownKey) fails.
             var result = _verifier.Verify(stored.Token, now);
-            if (result.Status != VerifyStatus.Valid) return GateStatus.Invalid;
-
-            if (!string.Equals(result.Claims.AddonId, addinId, StringComparison.OrdinalIgnoreCase))
+            if (result.Status != VerifyStatus.Valid && result.Status != VerifyStatus.Expired)
                 return GateStatus.Invalid;
 
-            if (!DeviceFingerprint.Matches(result.Claims.DeviceHash, currentDeviceId))
+            var claims = result.Claims;
+
+            // iat floor: "now" can never legitimately precede the moment the token was signed.
+            var floor = stored.MaxDateSeen;
+            if (claims.IssuedAt > floor) floor = claims.IssuedAt;
+            if (now < floor) return GateStatus.Rollback;
+
+            // Decide expiry against the ratchet max, never the raw clock, so a rolled-back
+            // clock can never un-expire a token.
+            var effectiveNow = now > floor ? now : floor;
+            if (effectiveNow > claims.Expires) return GateStatus.Invalid;
+
+            if (!string.Equals(claims.AddonId, addinId, StringComparison.OrdinalIgnoreCase))
                 return GateStatus.Invalid;
 
-            _store.Write(new StoredLicense { Token = stored.Token, MaxDateSeen = ratchet.Advance(now).MaxDateSeen });
+            if (!DeviceFingerprint.Matches(claims.DeviceHash, currentDeviceId))
+                return GateStatus.Invalid;
+
+            // Advance the ratchet forward by both the observed clock and the iat floor, and persist.
+            var advanced = new RollbackRatchet { MaxDateSeen = stored.MaxDateSeen }
+                .Advance(now).Advance(claims.IssuedAt).MaxDateSeen;
+            _store.Write(new StoredLicense { Token = stored.Token, MaxDateSeen = advanced });
             return GateStatus.Valid;
         }
     }
@@ -1185,7 +1242,7 @@ public class ActivationViewModelTests
 - [ ] **Step 3: Implement**
 - Add the test seams (`TokenStoreOverride`, `NowOverride`, `DeviceOverride` as `string`) with production defaults (`DeviceOverride` defaults to `DeviceFingerprint.CurrentDeviceId()`).
 - Add `DeviceFingerprintDisplay` = short prefix of `DeviceFingerprint.Hash(DeviceFingerprint.CurrentDeviceId())`.
-- Add `PastedToken` + `ActivateTokenCommand` that runs the gate against a store seeded with the pasted token (or verifies directly then writes on success).
+- Add `PastedToken` + `ActivateTokenCommand` that verifies the pasted token and, on success, writes it via `LicenseStore`. **Seed `MaxDateSeen = max(token.iat, now)`** when writing the newly activated token (establishes the `iat` floor — a machine whose clock is set before the token's issue date is caught on the next gate evaluation).
 - Convert `ExecuteSubmit` to `async Task ExecuteSubmitCore()` wrapped by `async void ExecuteSubmit(object o){ try { await ExecuteSubmitCore(); } catch (Exception ex) { Status = "Activation error"; } }`.
 - In `AuthWindow.xaml`, add a "Paste license token" TextBox bound to `PastedToken`, an "Activate" button bound to `ActivateTokenCommand`, and a read-only fingerprint label bound to `DeviceFingerprintDisplay`.
 
