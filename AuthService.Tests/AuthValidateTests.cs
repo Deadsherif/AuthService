@@ -24,6 +24,7 @@ public class AuthValidateTests
 
         Auth.GateFactory = _ => new LicenseGate(new LicenseStore(path));
         Auth.NowProvider = () => DateTimeOffset.FromUnixTimeSeconds(1_750_000_000);
+        Auth.OnlineTimeProvider = () => null; // hermetic: no network call, anchor on NowProvider only
         Auth.DeviceProvider = () => "TEST-DEVICE";
 
         var status = await Auth.ValidateAuth("Addin", "9F4E7C9b-9B06-4E9D-92BD-1FD0A3A2D7F8");

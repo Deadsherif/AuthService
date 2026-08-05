@@ -39,7 +39,7 @@ namespace AuthService.Services
                         string code = "aWiS1Tbo2bm"; // Replace with actual code if needed aWiS1Tbo2bxm
                         for (int i = 0; i < 2; i++)
                         {
-                            response = await _subscriptionService.GetRedemptionsAsync(code);
+                            response = await _subscriptionService.GetRedemptionsAsync(code).ConfigureAwait(false);
                             if (response != null)
                                 break;
                         }

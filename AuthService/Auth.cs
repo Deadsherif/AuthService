@@ -37,7 +37,11 @@ namespace AuthService
         {
             try
             {
-                DateTime onlineDate = DateHelper.GetCurrentDateFromWebAsync().GetAwaiter().GetResult();
+                // Run on the thread pool so this never captures/blocks the caller's
+                // SynchronizationContext (e.g. a UI thread in a CAD/Office host). Without
+                // Task.Run, GetAwaiter().GetResult() here would block that context while
+                // DateHelper's internal awaits try to resume back onto it -> deadlock.
+                DateTime onlineDate = Task.Run(() => DateHelper.GetCurrentDateFromWebAsync()).GetAwaiter().GetResult();
                 return new DateTimeOffset(DateTime.SpecifyKind(onlineDate, DateTimeKind.Utc));
             }
             catch
