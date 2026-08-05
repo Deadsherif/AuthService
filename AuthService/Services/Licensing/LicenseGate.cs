@@ -35,7 +35,9 @@ namespace AuthService.Services.Licensing
             if (now < floor) return GateStatus.Rollback;
 
             // Decide expiry against the ratchet max, never the raw clock, so a rolled-back
-            // clock can never un-expire a token.
+            // clock can never un-expire a token. The iat-floor check above already guarantees
+            // now >= floor here, so this ternary is defensive: it still picks the correct
+            // (larger) value even if that check were ever reordered or removed.
             var effectiveNow = now > floor ? now : floor;
             if (effectiveNow > claims.Expires) return GateStatus.Invalid;
 
@@ -45,7 +47,7 @@ namespace AuthService.Services.Licensing
             if (!DeviceFingerprint.Matches(claims.DeviceHash, currentDeviceId))
                 return GateStatus.Invalid;
 
-            // Advance the ratchet forward by both the observed clock and the iat floor, and persist.
+            // Advance the ratchet forward by both `now` and `iat`, and persist.
             var advanced = new RollbackRatchet { MaxDateSeen = stored.MaxDateSeen }
                 .Advance(now).Advance(claims.IssuedAt).MaxDateSeen;
             _store.Write(new StoredLicense { Token = stored.Token, MaxDateSeen = advanced });

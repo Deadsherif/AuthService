@@ -89,4 +89,39 @@ public class LicenseGateTests
         Assert.Equal(GateStatus.Invalid, gate.Evaluate(
             "9F4E7C9b-9B06-4E9D-92BD-1FD0A3A2D7F8", "TEST-DEVICE", DateTimeOffset.FromUnixTimeSeconds(2_000_000_000)));
     }
+
+    // A token whose signature does not verify must fail closed through the gate itself, not
+    // just at the verifier layer: exercises the "!= Valid && != Expired -> Invalid" branch.
+    [Fact]
+    public void BadSignatureToken_IsInvalid()
+    {
+        var keys = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText("Vectors/keys.json"));
+        LicensePublicKeys.LoadForTests(keys.GetProperty("kid").GetString(), keys.GetProperty("publicKeyPem").GetString());
+        var vectors = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText("Vectors/vectors.json"));
+        string token = null;
+        foreach (var v in vectors.EnumerateArray())
+            if (v.GetProperty("name").GetString() == "tampered") token = v.GetProperty("token").GetString();
+        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+        new LicenseStore(path).Write(new StoredLicense { Token = token, MaxDateSeen = DateTimeOffset.FromUnixTimeSeconds(1_700_000_000) });
+        var gate = new LicenseGate(new LicenseStore(path));
+        Assert.Equal(GateStatus.Invalid, gate.Evaluate(
+            "9F4E7C9b-9B06-4E9D-92BD-1FD0A3A2D7F8", "TEST-DEVICE", DateTimeOffset.FromUnixTimeSeconds(1_750_000_000)));
+    }
+
+    // A verified, unexpired token for the wrong add-in must still be rejected by the gate.
+    [Fact]
+    public void AddonMismatch_IsInvalid()
+    {
+        var keys = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText("Vectors/keys.json"));
+        LicensePublicKeys.LoadForTests(keys.GetProperty("kid").GetString(), keys.GetProperty("publicKeyPem").GetString());
+        var vectors = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText("Vectors/vectors.json"));
+        string token = null;
+        foreach (var v in vectors.EnumerateArray())
+            if (v.GetProperty("name").GetString() == "valid") token = v.GetProperty("token").GetString();
+        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+        new LicenseStore(path).Write(new StoredLicense { Token = token, MaxDateSeen = DateTimeOffset.FromUnixTimeSeconds(1_700_000_000) });
+        var gate = new LicenseGate(new LicenseStore(path));
+        Assert.Equal(GateStatus.Invalid, gate.Evaluate(
+            "00000000-0000-0000-0000-000000000000", "TEST-DEVICE", DateTimeOffset.FromUnixTimeSeconds(1_750_000_000)));
+    }
 }
