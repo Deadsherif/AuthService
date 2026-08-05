@@ -54,10 +54,9 @@ namespace AuthService.Services
 
                     try
                     {
-                        var task = client.GetAsync("https://aisenseapi.com/services/v1/datetime");
-                        var response = task.GetAwaiter().GetResult();
+                        var response = await client.GetAsync("https://aisenseapi.com/services/v1/datetime").ConfigureAwait(false);
                         response.EnsureSuccessStatusCode();
-                        string content = await response.Content.ReadAsStringAsync();
+                        string content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
                         var options = new JsonSerializerOptions
                         {
@@ -75,8 +74,13 @@ namespace AuthService.Services
                         // Try fallback service (ipgeolocation.io)
                         try
                         {
-                            var task = client.GetAsync("https://api.ipgeolocation.io/timezone?apiKey=d27b8d6f8d6a4a899999d2e61aa6bab6&tz=UTC");
-                            var response = task.GetAwaiter().GetResult();
+                            string ipGeoApiKey = Environment.GetEnvironmentVariable("FIRSTOPTION_IPGEO_KEY");
+                            if (string.IsNullOrEmpty(ipGeoApiKey))
+                            {
+                                throw new InvalidOperationException("FIRSTOPTION_IPGEO_KEY not configured");
+                            }
+
+                            var response = await client.GetAsync($"https://api.ipgeolocation.io/timezone?apiKey={ipGeoApiKey}&tz=UTC").ConfigureAwait(false);
                             response.EnsureSuccessStatusCode(); // Throws exception if status code is not 2xx
                             string content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 

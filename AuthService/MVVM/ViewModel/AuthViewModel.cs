@@ -291,7 +291,6 @@ namespace AuthService.MVVM.ViewModel
                 // check if "data" field is populated and in the correct format
                 GetResponse = response;
                 IsGetResponseNull = false;
-                GetTried = GetTried++;
                 var redemptions = response.Payload.Redemptions.FirstOrDefault();
                 bool dataExists = redemptions != null && redemptions.Data != null && redemptions.Data.Any();
                 if (dataExists)

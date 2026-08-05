@@ -192,7 +192,7 @@ namespace AuthService.Services
                 var trimmed = part.Trim();
                 if (!macRegex.IsMatch(trimmed))
                 {
-                    break;
+                    continue;
                 }
                 validMacs.Add(trimmed);
             }

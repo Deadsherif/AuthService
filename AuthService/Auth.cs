@@ -30,6 +30,22 @@ namespace AuthService
         internal static Func<DateTimeOffset> NowProvider = () => DateTimeOffset.UtcNow;
         internal static Func<string> DeviceProvider = DeviceFingerprint.CurrentDeviceId;
 
+        // Best-effort trusted-online-time reading used to anchor the anti-rollback ratchet forward.
+        // Must never throw and never block longer than DateHelper's own short timeout; returns null
+        // on any failure so callers fall back to the local clock.
+        internal static Func<DateTimeOffset?> OnlineTimeProvider = () =>
+        {
+            try
+            {
+                DateTime onlineDate = DateHelper.GetCurrentDateFromWebAsync().GetAwaiter().GetResult();
+                return new DateTimeOffset(DateTime.SpecifyKind(onlineDate, DateTimeKind.Utc));
+            }
+            catch
+            {
+                return null;
+            }
+        };
+
         public Auth(string addinName, string addinID)
             : this(addinName, addinID, new Window())
         {
@@ -66,7 +82,10 @@ namespace AuthService
         public static async Task<SubscriptionService.SubscriptionStatus> ValidateAuth(string addinName, string addinID, string signupLink = null)
         {
             var gate = GateFactory(addinID);
-            var status = gate.Evaluate(addinID, DeviceProvider(), NowProvider());
+            var now = NowProvider();
+            var online = OnlineTimeProvider();
+            var effectiveNow = (online.HasValue && online.Value > now) ? online.Value : now;
+            var status = gate.Evaluate(addinID, DeviceProvider(), effectiveNow);
             if (status == GateStatus.Valid)
             {
                 SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.Valid);

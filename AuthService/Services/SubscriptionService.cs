@@ -44,10 +44,9 @@ namespace AuthService.Services
             try
             {
                 string url = $"{EntitlmentUrl}?userid={userId}&appid={appId}";
-                var task = _httpClient.PostAsync(url, null);
-                var response = task.GetAwaiter().GetResult();
+                var response = await _httpClient.PostAsync(url, null).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode(); // Throws exception if status code is not 2xx
-                return await response.Content.ReadAsStringAsync();
+                return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             }
             catch (TaskCanceledException)
             {
@@ -76,10 +75,9 @@ namespace AuthService.Services
             try
             {
                 string url = $"{EntitlmentUrl}?userid={userId}&appid={appId}";
-                Task<HttpResponseMessage> task = _httpClient.GetAsync(url);
-                HttpResponseMessage response = task.GetAwaiter().GetResult();
+                HttpResponseMessage response = await _httpClient.GetAsync(url).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode(); // Throws exception if status code is not 2xx
-                string responseContent = await response.Content.ReadAsStringAsync();
+                string responseContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                 var options = new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true
@@ -110,10 +108,9 @@ namespace AuthService.Services
             {
                 string encodedCode = Uri.EscapeDataString(code);
                 string url = $"{RedemptionsUrl}?code={encodedCode}";
-                Task<HttpResponseMessage> task = _httpClient.GetAsync(url);
-                HttpResponseMessage response = task.GetAwaiter().GetResult();
+                HttpResponseMessage response = await _httpClient.GetAsync(url).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode(); // Throws exception if status code is not 2xx
-                string responseContent = await response.Content.ReadAsStringAsync();
+                string responseContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
                 var options = new JsonSerializerOptions
                 {
@@ -143,10 +140,9 @@ namespace AuthService.Services
             try
             {
                 string url = $"{RedeeemUrl}?code={code}&data[]={data}";
-                var task = _httpClient.PostAsync(url, null);
-                var response = task.GetAwaiter().GetResult();
+                var response = await _httpClient.PostAsync(url, null).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode();
-                string responseContent = await response.Content.ReadAsStringAsync();
+                string responseContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
                 var options = new JsonSerializerOptions
                 {
