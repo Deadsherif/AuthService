@@ -99,6 +99,7 @@
     <Compile Include="Services\Licensing\DeviceFingerprint.cs" />
     <Compile Include="Services\Licensing\RollbackRatchet.cs" />
     <Compile Include="Services\Licensing\LicenseStore.cs" />
+    <Compile Include="Services\Licensing\LicenseGate.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Net.Http.Json" Version="8.0.0" />
