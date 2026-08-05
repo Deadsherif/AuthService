@@ -97,6 +97,7 @@
     <Compile Include="Services\Licensing\LicensePublicKeys.cs" />
     <Compile Include="Services\Licensing\LicenseTokenVerifier.cs" />
     <Compile Include="Services\Licensing\DeviceFingerprint.cs" />
+    <Compile Include="Services\Licensing\RollbackRatchet.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Net.Http.Json" Version="8.0.0" />
