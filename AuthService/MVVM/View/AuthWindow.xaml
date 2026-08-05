@@ -5,8 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:AuthService.MVVM.View"
         mc:Ignorable="d"
-        Title="First Option - Authentication" 
-        Height="450" 
+        Title="First Option - Authentication"
+        Height="620"
         Width="400"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
@@ -131,6 +131,8 @@
                 <!-- Input Field -->
                 <RowDefinition Height="Auto"/>
                 <!-- Buttons -->
+                <RowDefinition Height="Auto"/>
+                <!-- Air-gapped Activation (paste token) -->
                 <RowDefinition Height="*"/>
                 <!-- Status Info -->
                 <RowDefinition Height="Auto"/>
@@ -171,17 +173,53 @@
                         Margin="0,0,15,0"
                         IsDefault="True"/>
 
-                <Button Content="{Binding CloseButtonText}" 
+                <Button Content="{Binding CloseButtonText}"
                         Command="{Binding CloseCommand}"
                         CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
                         Style="{StaticResource SecondaryButtonStyle}"
                         Width="120"/>
             </StackPanel>
 
+            <!-- Air-gapped Activation: paste a token minted offline for this exact device -->
+            <StackPanel Grid.Row="4" Margin="0,0,0,20">
+                <TextBlock Text="Air-Gapped Activation"
+                           Foreground="{StaticResource TextWhiteBrush}"
+                           FontSize="16"
+                           Margin="0,0,0,10"/>
+
+                <TextBlock Text="Device fingerprint (share this to mint a token offline)"
+                           Foreground="{StaticResource TextGrayBrush}"
+                           FontSize="11"
+                           Margin="0,0,0,4"/>
+
+                <TextBox Text="{Binding DeviceFingerprintDisplay, Mode=OneWay}"
+                         Style="{StaticResource ModernTextBoxStyle}"
+                         IsReadOnly="True"
+                         Margin="0,0,0,15"/>
+
+                <TextBlock Text="Paste license token"
+                           Foreground="{StaticResource TextGrayBrush}"
+                           FontSize="11"
+                           Margin="0,0,0,4"/>
+
+                <TextBox Text="{Binding PastedToken, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource ModernTextBoxStyle}"
+                         Tag="Paste your license token here..."
+                         AcceptsReturn="False"
+                         TextWrapping="Wrap"
+                         Margin="0,0,0,15"/>
+
+                <Button Content="Activate"
+                        Command="{Binding ActivateTokenCommand}"
+                        Style="{StaticResource ModernButtonStyle}"
+                        Width="120"
+                        HorizontalAlignment="Left"/>
+            </StackPanel>
+
             <!-- Status Information Card -->
-            <Border Grid.Row="4" 
-                    Background="{StaticResource SecondaryBlackBrush}" 
-                    CornerRadius="10" 
+            <Border Grid.Row="5"
+                    Background="{StaticResource SecondaryBlackBrush}"
+                    CornerRadius="10"
                     Padding="20"
                     VerticalAlignment="Top">
                 <StackPanel>
@@ -226,7 +264,7 @@
             </Border>
 
             <!-- Server Response / Loading / Signup -->
-            <Grid Grid.Row="5" Margin="0,20,0,0">
+            <Grid Grid.Row="6" Margin="0,20,0,0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
