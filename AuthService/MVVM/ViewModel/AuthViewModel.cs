@@ -144,7 +144,7 @@ namespace AuthService.MVVM.ViewModel
                 if (response == null)
                 {
                     ServerResponse = string.Empty;
-                    SubscriptionService.Status = SubscriptionService.SubscriptionStatus.Error;
+                    SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.Error);
                     Status = "Failed to connect or Code couldn't be found";
                     StatusForeground = System.Windows.Media.Brushes.Red;
                     CloseButtonText = "Close";
@@ -155,7 +155,7 @@ namespace AuthService.MVVM.ViewModel
                 if (!response.Success)
                 {
                     ServerResponse = string.Empty;
-                    SubscriptionService.Status = SubscriptionService.SubscriptionStatus.NotFound;
+                    SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.NotFound);
                     Status = "Code not found";
                     StatusForeground = System.Windows.Media.Brushes.Red;
                     CloseButtonText = "Close";
@@ -179,7 +179,7 @@ namespace AuthService.MVVM.ViewModel
                         if (!string.Equals(_guid, responseAddonGuid, StringComparison.OrdinalIgnoreCase))
                         {
                             ServerResponse = string.Empty;
-                            SubscriptionService.Status = SubscriptionService.SubscriptionStatus.Error;
+                            SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.Error);
                             Status = "Addon ID mismatch";
                             StatusForeground = System.Windows.Media.Brushes.Red;
                             CloseButtonText = "Close";
@@ -191,7 +191,7 @@ namespace AuthService.MVVM.ViewModel
                     if (!string.Equals(subscription.Status, "active", StringComparison.OrdinalIgnoreCase))
                     {
                         ServerResponse = string.Empty;
-                        SubscriptionService.Status = SubscriptionService.SubscriptionStatus.Expired;
+                        SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.Expired);
                         Status = $"Subscription is not active, Status: {subscription.Status}";
                         StatusForeground = System.Windows.Media.Brushes.Red;
                         CloseButtonText = "Close";
@@ -242,7 +242,7 @@ namespace AuthService.MVVM.ViewModel
                 if (!exist)
                 {
                     ServerResponse = string.Empty;
-                    SubscriptionService.Status = SubscriptionService.SubscriptionStatus.Error;
+                    SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.Error);
                     Status = "Device not authorized";
                     StatusForeground = System.Windows.Media.Brushes.Red;
                     CloseButtonText = "Close";
@@ -267,13 +267,13 @@ namespace AuthService.MVVM.ViewModel
                     
                     if (isExpired)
                     {
-                        SubscriptionService.Status = SubscriptionService.SubscriptionStatus.Expired;
+                        SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.Expired);
                         StatusForeground = System.Windows.Media.Brushes.Red;
                         CloseButtonText = "Close";
                     }
                     else
                     {
-                        SubscriptionService.Status = SubscriptionService.SubscriptionStatus.Valid;
+                        SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.Valid);
                         StatusForeground = System.Windows.Media.Brushes.Green;
                         CloseButtonText = "Continue";
                         LocalAuthCache._code = Code;
@@ -288,7 +288,7 @@ namespace AuthService.MVVM.ViewModel
                 }
                 else
                 {
-                    SubscriptionService.Status = SubscriptionService.SubscriptionStatus.NotFound;
+                    SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.NotFound);
                     Status = string.Empty;
                     StatusForeground = System.Windows.Media.Brushes.Black;
                     CloseButtonText = "Close";
@@ -326,7 +326,7 @@ namespace AuthService.MVVM.ViewModel
                 return;
             }
 
-            SubscriptionService.Status = SubscriptionService.SubscriptionStatus.Valid;
+            SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.Valid);
             EndDate = DateTime.MaxValue;
             Status = "On Premise - Valid";
             StatusForeground = System.Windows.Media.Brushes.Green;

@@ -18,7 +18,9 @@ namespace AuthService.Services
 {
     public class SubscriptionService
     {
-        public static SubscriptionStatus Status { get; set; } = SubscriptionStatus.Error;
+        public static SubscriptionStatus Status { get; private set; } = SubscriptionStatus.Error;
+
+        internal static void SetStatus(SubscriptionStatus s) => Status = s;
 
         private readonly HttpClient _httpClient;
         private const string RedemptionsUrl = "https://marketplace.firstoption-es.com/api/subscriptions/redemptions";

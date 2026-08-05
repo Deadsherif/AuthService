@@ -60,7 +60,7 @@ namespace AuthService
         {
             if (HasCacheEntry(addinID))
             {
-                SubscriptionService.Status = SubscriptionService.SubscriptionStatus.Valid;
+                SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.Valid);
                 _ = Task.Run(() => StartBackgroundRevalidation(addinName, addinID));
                 return SubscriptionStatus.Valid;
             }
@@ -130,11 +130,11 @@ namespace AuthService
             bool isValid = await ValidateCachedEntryAgainstServer(addinID).ConfigureAwait(false);
             if (isValid)
             {
-                SubscriptionService.Status = SubscriptionService.SubscriptionStatus.Valid;
+                SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.Valid);
                 return SubscriptionStatus.Valid;
             }
 
-            SubscriptionService.Status = SubscriptionService.SubscriptionStatus.NotFound;
+            SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.NotFound);
             if (!showUiWhenInvalid)
             {
                 return SubscriptionStatus.NotFound;
@@ -179,7 +179,7 @@ namespace AuthService
             var IsValid = await model;
             if (IsValid)
             {
-                SubscriptionService.Status = SubscriptionService.SubscriptionStatus.Valid;
+                SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.Valid);
                 return SubscriptionStatus.Valid;
             }
             SubscriptionService subscriptionService = new SubscriptionService();
@@ -188,7 +188,7 @@ namespace AuthService
             {
                 if (entitlementResult.IsValid) 
                 {
-                    SubscriptionService.Status = SubscriptionService.SubscriptionStatus.Valid;
+                    SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.Valid);
                     string currentMac = SubscriptionService.GetCurrentMacAddress();
                     var code = await subscriptionService.PostEntitlementToFirstOptionAsync(appId, userId, currentMac);
                     LocalAuthCache._code = code;
@@ -197,7 +197,7 @@ namespace AuthService
                 }
                 else
                 {
-                    SubscriptionService.Status = SubscriptionService.SubscriptionStatus.NotFound;
+                    SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.NotFound);
                     return SubscriptionStatus.NotFound;
                 }
             }
