@@ -1397,3 +1397,60 @@ git commit -m "test: end-to-end mint/verify; add backend hand-off doc"
 **Type consistency:** `LicenseClaims`, `VerifyStatus`/`VerifyResult`, `GateStatus`, `RollbackRatchet.MaxDateSeen`, `StoredLicense.Token/MaxDateSeen`, `LicensePublicKeys.Resolve/LoadForTests`, `DeviceFingerprint.Hash/Matches/Components` are used consistently across Tasks 1–13.
 
 **Open risk to confirm during Task 3/4:** `ImportFromPem` availability on net47/net48 — if unavailable in the pinned SDK, fall back to stripping PEM armor + `ImportSubjectPublicKeyInfo`. Flagged inline in Task 3.
+
+---
+
+# Phase 2 — Full cutover: retire the legacy trust store
+
+**Why:** The whole-branch review found the new token system correct but coexisting with four legacy paths to `Valid`, one a clean offline forge (`ValidateEntitlement` + shipped AES cache key). Decision (2026-08-05): full cutover — a signed token in `LicenseStore` evaluated by `LicenseGate` becomes the ONLY route to `SubscriptionService.SetStatus(Valid)`. Online customers activate via a pasted signed token until a backend mint endpoint exists.
+
+**Global constraints:** unchanged from Phase 1 (multi-target net47/net48/net8.0-windows, build each config with `-c`, explicit `<Compile>` list, commit-per-task, all existing tests stay green except those that test code being deleted). Preserve `DateHelper`'s read-only use of the marketplace redemption call as a time source (not a Valid decision).
+
+## Task 14: I4 fix — online time drives expiry detection only, never the persisted ratchet
+
+**Files:** `AuthService/Services/Licensing/LicenseGate.cs`, `AuthService/Auth.cs`, `AuthService.Tests/LicenseGateTests.cs` (+ `OnlineTimeAnchorTests` update).
+
+**Change:** A bogus future online reading must not be persisted into `MaxDateSeen` (that would permanently self-lockout on the next honest run). Online time may still *detect* an expired token.
+- `LicenseGate.Evaluate(string addinId, string currentDeviceId, DateTimeOffset now, DateTimeOffset? onlineNow = null)`:
+  - rollback + iat-floor + persist use LOCAL `now` only (persist stays `max(MaxDateSeen, now, iat)` — no online).
+  - expiry uses `expiryTime = max(now, floor, onlineNow ?? DateTimeOffset.MinValue)`; `expiryTime > exp` → Invalid.
+- `Auth.ValidateAuth`: pass `now = NowProvider()` and `onlineNow = OnlineTimeProvider()` separately to `Evaluate` (drop the `effectiveNow = max(...)` fold).
+
+**Tests:** (a) valid token + bogus-future `onlineNow` (still < exp) → Valid, and store's `MaxDateSeen` did NOT advance to the online value (only to local/iat). (b) expired token detectable: honest `onlineNow > exp` with a rolled-back local clock → Invalid. Update `OnlineTimeAnchorTests` to reflect that online time is no longer persisted (rename/repurpose to assert expiry-detection-without-persistence). Full suite green; 3 configs build. Commit.
+
+## Task 15: Remove legacy Valid-granting from Auth.cs
+
+**Files:** `AuthService/Auth.cs`, `AuthService/AuthBackgroundFailureSubscription.cs` (delete if fully dead), `AuthService/AuthService.csproj`.
+
+**Remove:**
+- `Auth.ValidateEntitlement` (entirely — the offline-forge path).
+- The legacy-cache fallback in `ValidateAuthCore`/`ValidateCachedEntryAgainstServer` (`SilentAuth`). On a non-`Valid` gate result, the flow shows the `AuthWindow` token-activation UI only — no legacy cache consulted for a Valid decision.
+- Dead code: `StartBackgroundRevalidation`, the `BackgroundValidationFailed` event, and `AuthBackgroundFailureSubscription` wiring (Auth ctor field, Dispose, `IsRevoked`) if nothing else uses them. Keep `Auth`'s public ctors/`Dispose`/`Validate()`/`ValidateAuth` signatures stable (consuming add-ins depend on them) — `IsRevoked` may return `false` constant if the subscription is removed, or keep a trivial stub; do not change the public surface shape.
+
+**Preserve:** `Auth.ValidateAuth` signature; the gate path; the AuthWindow UI entry.
+
+**Tests:** existing `AuthValidateTests` stays green (valid token → Valid, no UI). Add a no-bypass test: seed ONLY a forged legacy cache (no token in `LicenseStore`) and assert the gate path returns non-Valid (i.e., `LicenseStore.Default()` empty → gate `Invalid`); assert `ValidateEntitlement` no longer exists (the test file must not reference it). Full suite green; 3 configs build. Commit.
+
+## Task 16: Retire premise auto-auth + short-code redemption in AuthViewModel
+
+**Files:** `AuthService/MVVM/ViewModel/AuthViewModel.cs`, `AuthService/MVVM/View/AuthWindow.xaml`, `AuthService/MVVM/View/AuthWindow.xaml.cs`.
+
+**Remove:**
+- `OnFirstOptionPremiseAuth`'s `SetStatus(Valid)` + `WriteRecordMax` grant (and the `AuthWindow.xaml.cs` `Loaded` wiring that invokes it). Premise/air-gapped now activates via token paste.
+- `ExecuteSubmitCore`'s legacy redemption → `LocalAuthCache.WriteRecord` Valid path and the short-code Check flow. The paste-token + device-fingerprint activation (added in Phase 1 Task 11) is the sole activation UX.
+- The short-code `Code` TextBox + Check button from `AuthWindow.xaml` (or repurpose the box for the pasted token if that reads cleaner) — keep the paste-token box, Activate button, fingerprint label, status card, close, signup link.
+
+**Preserve:** the `ActivateTokenCommand` paste flow and its tests; `DeviceFingerprintDisplay`.
+
+**Tests:** `ActivationViewModelTests` stays green. Remove/adjust any test asserting the old short-code redemption behavior. Full suite green; 3 configs build. Commit.
+
+## Task 17: Delete the shipped AES key and retire LocalAuthCache
+
+**Files:** `AuthService/Services/LocalAuthCache.cs` (delete or gut), `AuthService/AuthService.csproj`, `AuthService.Tests/MacListParsingTests.cs` (delete — tests now-removed `IsMacValid`), any remaining references.
+
+**Remove:** the hardcoded AES `EncryptionKey`/`InitializationVector`, `Encrypt`/`Decrypt`, `SilentAuth`, `TryGetValidEntry`, `ValidatePremiseCacheEntryAsync`, `WriteRecord`/`WriteRecordMax`/`WriteCache*`, `IsMacValid`, `ReadCache`/`RemoveEntry` — everything that made the legacy cache a trusted authority. If the whole file becomes unused, delete it and its `<Compile>` entry; delete `MacListParsingTests` (it tested `IsMacValid`). Keep MAC helpers only if still referenced elsewhere (they live in `SubscriptionService`, not here).
+
+**Acceptance (the point of Phase 2):** grep the shipped source — NO hardcoded AES key, NO `admin` cred, NO marketplace/ipgeo key remains. The only reachable route to `SubscriptionService.SetStatus(SubscriptionStatus.Valid)` is through `LicenseGate` (via `Auth.ValidateAuth` or the `ActivateTokenCommand` paste flow). Full suite green (minus deleted legacy tests); 3 configs build. Commit.
+
+## Phase 2 final check
+Re-run the whole-branch review focused on finding #1 (no surviving non-gated Valid path). Then finish the branch.
