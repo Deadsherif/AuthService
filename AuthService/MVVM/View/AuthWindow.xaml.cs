@@ -13,7 +13,6 @@ namespace AuthService.MVVM.View
             InitializeComponent();
             var viewModel = new AuthViewModel(addinName, addinID, signupLink);
             DataContext = viewModel;
-            Loaded += (_, _) => viewModel.OnFirstOptionPremiseAuth(this);
         }
     }
 }

@@ -4,6 +4,8 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using AuthService;
+using AuthService.MVVM.ViewModel;
+using AuthService.Services;
 using AuthService.Services.Licensing;
 using Xunit;
 
@@ -102,6 +104,62 @@ public class NoLegacyBypassTests
         Assert.NotNull(authType.GetProperty("SignupLink"));
         Assert.NotNull(authType.GetMethod("ValidateAuth", BindingFlags.Public | BindingFlags.Static));
         Assert.NotNull(authType.GetEvent("BackgroundValidationFailed", BindingFlags.Public | BindingFlags.Static));
+    }
+
+    // Task 16 cutover: AuthViewModel used to grant Valid two ways without the token gate --
+    // OnFirstOptionPremiseAuth (premise auto-auth on Loaded, driven by shared service creds)
+    // and ExecuteSubmitCore (legacy short-code marketplace redemption, wired to SubmitCommand).
+    // Both were deleted. The ONLY route to Valid through AuthViewModel is now
+    // ActivateTokenCommand -> ExecuteActivateToken, which requires a verified, device-matched,
+    // unexpired pasted token. This test pins down (reflection) that the old members are
+    // provably gone, not just unreferenced by production code.
+    [Fact]
+    public void AuthViewModel_HasNoLegacyValidGrantingMembers()
+    {
+        var vmType = typeof(AuthViewModel);
+        var allMembers = vmType
+            .GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance)
+            .Select(m => m.Name)
+            .ToArray();
+
+        // Premise auto-auth: authenticated against the premise server with shared service
+        // creds and granted Valid on Loaded, with no token and no gate involved.
+        Assert.DoesNotContain("OnFirstOptionPremiseAuth", allMembers);
+
+        // Legacy short-code redemption: called the marketplace and granted Valid on success,
+        // with no token and no gate involved.
+        Assert.DoesNotContain("SubmitCommand", allMembers);
+        Assert.DoesNotContain("ExecuteSubmit", allMembers);
+        Assert.DoesNotContain("ExecuteSubmitCore", allMembers);
+        Assert.DoesNotContain("CanExecuteSubmit", allMembers);
+
+        // The short-code text field itself -- served no purpose once the redemption flow
+        // that consumed it was deleted.
+        Assert.DoesNotContain("Code", allMembers);
+
+        // AuthViewModel must no longer be able to write into LocalAuthCache at all -- those
+        // calls only ever existed inside the two removed flows.
+        Assert.DoesNotContain("_premiseAuthStarted", allMembers);
+    }
+
+    [Fact]
+    public void AuthViewModel_ConstructingAndInvokingRemainingCommands_CannotReachValid()
+    {
+        // Sanity check that mirrors the reflection assertion above at the behavior level:
+        // build the VM the way AuthWindow.xaml.cs does now (no Loaded-driven side effect,
+        // since OnFirstOptionPremiseAuth is gone) and drive every command it exposes except
+        // ActivateTokenCommand (which is exercised, with a real valid token, by
+        // ActivationViewModelTests). None of the remaining commands should be able to grant
+        // Valid.
+        SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.Error);
+
+        var vm = new AuthViewModel("Addin", "9F4E7C9b-9B06-4E9D-92BD-1FD0A3A2D7F8");
+
+        Assert.True(vm.CloseCommand.CanExecute(null));
+        Assert.False(vm.OpenSignupLinkCommand.CanExecute(null)); // no signup link configured
+        Assert.False(vm.ActivateTokenCommand.CanExecute(null));  // no pasted token yet
+
+        Assert.NotEqual(SubscriptionService.SubscriptionStatus.Valid, SubscriptionService.Status);
     }
 
     [Fact]

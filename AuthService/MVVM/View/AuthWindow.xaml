@@ -152,27 +152,14 @@
             </StackPanel>
 
             <!-- Input Section -->
-            <TextBlock Grid.Row="1" 
-                       Text="License Activation" 
-                       Foreground="{StaticResource TextWhiteBrush}" 
-                       FontSize="16" 
+            <TextBlock Grid.Row="1"
+                       Text="License Activation"
+                       Foreground="{StaticResource TextWhiteBrush}"
+                       FontSize="16"
                        Margin="0,0,0,10"/>
-
-            <TextBox Grid.Row="2" 
-                     Text="{Binding Code, UpdateSourceTrigger=PropertyChanged}" 
-                     Style="{StaticResource ModernTextBoxStyle}"
-                     Tag="Enter your license code here..."
-                     Margin="0,0,0,20"/>
 
             <!-- Action Buttons -->
             <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,30">
-                <Button Content="Check" 
-                        Command="{Binding SubmitCommand}"
-                        Style="{StaticResource ModernButtonStyle}"
-                        Width="120"
-                        Margin="0,0,15,0"
-                        IsDefault="True"/>
-
                 <Button Content="{Binding CloseButtonText}"
                         Command="{Binding CloseCommand}"
                         CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
@@ -288,13 +275,6 @@
                             <Run Text="Sign up"/>
                         </Hyperlink>
                     </TextBlock>
-
-                    <TextBlock Text="{Binding ServerResponse}" 
-                               Foreground="{StaticResource GoldAccentBrush}" 
-                               FontSize="12" 
-                               HorizontalAlignment="Center"
-                               TextWrapping="Wrap"
-                               TextAlignment="Center"/>
                 </Grid>
             </Grid>
         </Grid>
