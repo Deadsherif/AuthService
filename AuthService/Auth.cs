@@ -15,13 +15,16 @@ namespace AuthService
 
     public class Auth : IDisposable
     {
-        private const string BackgroundValidationFailedMessage = "Internet connection is required or a valid license is needed. This add-in will be closed.";
         private readonly string _addinName;
         private readonly string _addinID;
-        private readonly AuthBackgroundFailureSubscription _backgroundFailureSubscription;
         public static ApiResponseGet GetResponse { get; set; }
         public static bool IsGetResponseNull { get; set; } = true;
         public static int Tried { get; set; } = 0;
+
+        // Retired: background revalidation no longer runs (Task 15 full-token cutover), so this
+        // event is never fired. Kept declared, never raised, solely so external add-ins that
+        // still subscribe to it at compile time do not break. Do not wire anything to fire it
+        // without re-introducing an actual background revalidation path.
         public static event EventHandler<BackgroundValidationFailedEventArgs> BackgroundValidationFailed;
 
         // Injectable seams for testing: production defaults construct a real gate over the
@@ -59,17 +62,18 @@ namespace AuthService
         {
             _addinName = addinName;
             _addinID = addinID;
-            _backgroundFailureSubscription = new AuthBackgroundFailureSubscription(addinID, window);
         }
 
         public Auth(string addinName, string addinID, Form window)
         {
             _addinName = addinName;
             _addinID = addinID;
-            _backgroundFailureSubscription = new AuthBackgroundFailureSubscription(addinID, window);
         }
 
-        public bool IsRevoked => _backgroundFailureSubscription.IsRevoked;
+        // Background revalidation (and the subscription that watched for its failure) was
+        // removed in the Task 15 cutover, so there is no longer any signal that can revoke a
+        // session after the initial gate check. Always false; kept for public-surface stability.
+        public bool IsRevoked => false;
 
         public string SignupLink { get; set; }
 
@@ -80,7 +84,6 @@ namespace AuthService
 
         public void Dispose()
         {
-            _backgroundFailureSubscription.Dispose();
         }
 
         public static async Task<SubscriptionService.SubscriptionStatus> ValidateAuth(string addinName, string addinID, string signupLink = null)
@@ -132,93 +135,21 @@ namespace AuthService
             return completion.Task;
         }
 
-        private static async Task StartBackgroundRevalidation(string addinName, string addinID)
+        // On a non-Valid gate result, the only remaining route to Valid is the interactive
+        // AuthWindow token-activation UI. The legacy LocalAuthCache is never consulted here —
+        // it is a forgeable client-side cache and granting Valid from it would be a clean
+        // offline bypass of the license gate (Task 15 cutover).
+        private static Task<SubscriptionService.SubscriptionStatus> ValidateAuthCore(string addinName, string addinID, bool showUiWhenInvalid, string signupLink = null)
         {
-            var handler = BackgroundValidationFailed;
-            bool isValid = await LocalAuthCache.TryGetValidEntry(addinName, addinID).ConfigureAwait(false);
-            if (isValid)
-            {
-                return;
-            }
-
-            LocalAuthCache.RemoveEntry(addinID);
-            
-            if (handler == null)
-            {
-                return;
-            }
-
-            handler(
-                null,
-                new BackgroundValidationFailedEventArgs(addinName, addinID, SubscriptionStatus.NotFound, BackgroundValidationFailedMessage));
-        }
-
-        private static async Task<SubscriptionService.SubscriptionStatus> ValidateAuthCore(string addinName, string addinID, bool showUiWhenInvalid, string signupLink = null)
-        {
-            bool isValid = await ValidateCachedEntryAgainstServer(addinID).ConfigureAwait(false);
-            if (isValid)
-            {
-                SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.Valid);
-                return SubscriptionStatus.Valid;
-            }
-
             SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.NotFound);
             if (!showUiWhenInvalid)
             {
-                return SubscriptionStatus.NotFound;
+                return Task.FromResult(SubscriptionStatus.NotFound);
             }
 
             AuthWindow window = new AuthWindow(addinName, addinID, signupLink);
             window.ShowDialog();
-            return SubscriptionService.Status;
-        }
-
-        private static async Task<bool> ValidateCachedEntryAgainstServer(string addinID)
-        {
-            var cache = LocalAuthCache.ReadCache();
-            if (cache == null)
-            {
-                return false;
-            }
-
-            if (!cache.Entries.TryGetValue(addinID, out var entry) || entry == null)
-            {
-                return false;
-            }
-
-            DateTime currentDate = await DateHelper.GetCurrentDateFromWebAsync().ConfigureAwait(false);
-            return await LocalAuthCache.SilentAuth(entry, currentDate).ConfigureAwait(false);
-        }
-
-        public static async Task<SubscriptionService.SubscriptionStatus> ValidateEntitlement(string appId, string userId, string addinName, string addinID)
-        {
-            var model = LocalAuthCache.TryGetValidEntry(addinName, addinID);
-            var IsValid = await model;
-            if (IsValid)
-            {
-                SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.Valid);
-                return SubscriptionStatus.Valid;
-            }
-            SubscriptionService subscriptionService = new SubscriptionService();
-            var entitlementResult = await subscriptionService.GetEntitlementResponseAsync(appId, userId);
-            if (entitlementResult != null )
-            {
-                if (entitlementResult.IsValid) 
-                {
-                    SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.Valid);
-                    string currentMac = SubscriptionService.GetCurrentMacAddress();
-                    var code = await subscriptionService.PostEntitlementToFirstOptionAsync(appId, userId, currentMac);
-                    LocalAuthCache._code = code;
-                    LocalAuthCache.WriteRecord(addinID);
-                    return SubscriptionStatus.Valid;
-                }
-                else
-                {
-                    SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.NotFound);
-                    return SubscriptionStatus.NotFound;
-                }
-            }
-            return SubscriptionStatus.Error;
+            return Task.FromResult(SubscriptionService.Status);
         }
     }
 
