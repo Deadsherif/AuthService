@@ -84,6 +84,7 @@ namespace AuthService.MVVM.ViewModel
         public LicenseStore TokenStoreOverride { get; set; }
         public DateTimeOffset NowOverride { get; set; }
         public string DeviceOverride { get; set; }
+        public IMintClient MintClientOverride { get; set; }
 
         private string _code;
         public string Code
@@ -119,6 +120,7 @@ namespace AuthService.MVVM.ViewModel
             TokenStoreOverride = null; // resolved lazily to LicenseStore.Default() at use time
             NowOverride = DateTimeOffset.UtcNow;
             DeviceOverride = DeviceFingerprint.CurrentDeviceId();
+            MintClientOverride = new HttpMintClient(new System.Net.Http.HttpClient(), ActivationEndpoints.MintUrl);
         }
 
         private bool CanExecuteSubmit(object parameter) =>
@@ -170,12 +172,25 @@ namespace AuthService.MVVM.ViewModel
             }
         }
 
-        // Task 6 replaces this stub with a real mint-endpoint call.
-        private Task ActivateWithCodeAsync(string code)
+        private async Task ActivateWithCodeAsync(string code)
         {
-            Status = "Online activation is not available yet";
-            StatusForeground = System.Windows.Media.Brushes.Red;
-            return Task.CompletedTask;
+            IsLoading = true;
+            ServerResponse = "Contacting activation server...";
+            Status = string.Empty;
+            StatusForeground = System.Windows.Media.Brushes.Black;
+            try
+            {
+                var result = await MintClientOverride.RequestTokenAsync(code, DeviceOverride).ConfigureAwait(true);
+                if (result == null || !result.Success)
+                {
+                    ServerResponse = string.Empty;
+                    Status = "Activation failed: " + (result?.Error ?? "no response");
+                    StatusForeground = System.Windows.Media.Brushes.Red;
+                    return;
+                }
+                VerifyAndStore(result.Token);
+            }
+            finally { IsLoading = false; }
         }
 
         private void VerifyAndStore(string token)

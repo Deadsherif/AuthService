@@ -56,4 +56,38 @@ public class ActivationRoutingTests
         await vm.ActivateAsync();
         Assert.Contains("file not found", vm.Status);
     }
+
+    private sealed class FakeMintClient : AuthService.Services.Licensing.IMintClient
+    {
+        private readonly AuthService.Services.Licensing.MintResult _r;
+        public string LastCode; public string LastDevice;
+        public FakeMintClient(AuthService.Services.Licensing.MintResult r) { _r = r; }
+        public Task<AuthService.Services.Licensing.MintResult> RequestTokenAsync(string code, string deviceId)
+        { LastCode = code; LastDevice = deviceId; return Task.FromResult(_r); }
+    }
+
+    [Fact]
+    public async Task Code_CallsMint_AndActivatesReturnedToken()
+    {
+        var fake = new FakeMintClient(new AuthService.Services.Licensing.MintResult { Success = true, Token = ValidToken() });
+        var vm = NewVm(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json"));
+        vm.MintClientOverride = fake;
+        vm.Code = "aWiS1Tbo2bm";
+        await vm.ActivateAsync();
+        Assert.Equal("aWiS1Tbo2bm", fake.LastCode);
+        Assert.Equal("TEST-DEVICE", fake.LastDevice);
+        Assert.Equal(AuthService.Services.SubscriptionService.SubscriptionStatus.Valid,
+                     AuthService.Services.SubscriptionService.Status);
+    }
+
+    [Fact]
+    public async Task Code_MintFails_ShowsError()
+    {
+        var fake = new FakeMintClient(new AuthService.Services.Licensing.MintResult { Success = false, Error = "bad code" });
+        var vm = NewVm(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json"));
+        vm.MintClientOverride = fake;
+        vm.Code = "nope";
+        await vm.ActivateAsync();
+        Assert.Contains("bad code", vm.Status);
+    }
 }
