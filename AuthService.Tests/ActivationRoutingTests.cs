@@ -71,6 +71,7 @@ public class ActivationRoutingTests
     {
         var fake = new FakeMintClient(new AuthService.Services.Licensing.MintResult { Success = true, Token = ValidToken() });
         var vm = NewVm(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json"));
+        vm.UseLegacyActivation = false; // exercising the mint path explicitly
         vm.MintClientOverride = fake;
         vm.Code = "aWiS1Tbo2bm";
         await vm.ActivateAsync();
@@ -85,6 +86,7 @@ public class ActivationRoutingTests
     {
         var fake = new FakeMintClient(new AuthService.Services.Licensing.MintResult { Success = false, Error = "bad code" });
         var vm = NewVm(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json"));
+        vm.UseLegacyActivation = false; // exercising the mint path explicitly
         vm.MintClientOverride = fake;
         vm.Code = "nope";
         await vm.ActivateAsync();
@@ -97,6 +99,7 @@ public class ActivationRoutingTests
         var fake = new FakeMintClient(new AuthService.Services.Licensing.MintResult { Success = true, Token = "eyJ.garbage.sig" });
         var storePath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
         var vm = NewVm(storePath);
+        vm.UseLegacyActivation = false; // exercising the mint path explicitly
         vm.MintClientOverride = fake;
         vm.Code = "somecode";
         await vm.ActivateAsync();
@@ -105,5 +108,64 @@ public class ActivationRoutingTests
         // response must neither persist a token nor report success on this VM.
         Assert.Null(new AuthService.Services.Licensing.LicenseStore(storePath).Read()); // nothing stored
         Assert.Contains("invalid", vm.Status); // VM reported failure (message is lowercase "invalid")
+    }
+
+    private sealed class FakeLegacyClient : AuthService.Services.Licensing.ILegacyActivationClient
+    {
+        private readonly AuthService.Services.Licensing.LegacyActivationResult _r;
+        public string LastCode; public string LastDevice;
+        public FakeLegacyClient(AuthService.Services.Licensing.LegacyActivationResult r) { _r = r; }
+        public Task<AuthService.Services.Licensing.LegacyActivationResult> RegisterAsync(string code, string deviceHash)
+        { LastCode = code; LastDevice = deviceHash; return Task.FromResult(_r); }
+    }
+
+    [Fact]
+    public async Task Legacy_RegistersDeviceHash_ButDoesNotGrantAccess()
+    {
+        var fake = new FakeLegacyClient(new AuthService.Services.Licensing.LegacyActivationResult { CodeValid = true, Registered = true });
+        var storePath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+        var vm = NewVm(storePath);
+        vm.UseLegacyActivation = true;
+        vm.LegacyClientOverride = fake;
+        vm.Code = "aWiS1Tbo2bm";
+
+        await vm.ActivateAsync();
+
+        // device hash sent is Hash(MachineGuid-stand-in), matching the token contract
+        Assert.Equal(DeviceFingerprint.Hash("TEST-DEVICE"), fake.LastDevice);
+        Assert.Equal("aWiS1Tbo2bm", fake.LastCode);
+        // NOT granted: nothing stored, and this VM did not report a valid license
+        Assert.Null(new AuthService.Services.Licensing.LicenseStore(storePath).Read());
+        Assert.Contains("issued", vm.Status, StringComparison.OrdinalIgnoreCase); // "...will be issued shortly"
+    }
+
+    [Fact]
+    public async Task Legacy_UnknownCode_ShowsError()
+    {
+        var fake = new FakeLegacyClient(new AuthService.Services.Licensing.LegacyActivationResult { CodeValid = false, Registered = false, Error = "Code not found" });
+        var vm = NewVm(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json"));
+        vm.UseLegacyActivation = true;
+        vm.LegacyClientOverride = fake;
+        vm.Code = "nope";
+
+        await vm.ActivateAsync();
+
+        Assert.Contains("Code not found", vm.Status);
+    }
+
+    [Fact]
+    public async Task Legacy_NeverSetsGlobalValid_ForFreshVmBaseline()
+    {
+        // A legacy registration must not touch the licensing store for this VM.
+        var fake = new FakeLegacyClient(new AuthService.Services.Licensing.LegacyActivationResult { CodeValid = true, Registered = true });
+        var storePath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+        var vm = NewVm(storePath);
+        vm.UseLegacyActivation = true;
+        vm.LegacyClientOverride = fake;
+        vm.Code = "aWiS1Tbo2bm";
+
+        await vm.ActivateAsync();
+
+        Assert.Null(new AuthService.Services.Licensing.LicenseStore(storePath).Read());
     }
 }
