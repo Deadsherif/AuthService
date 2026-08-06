@@ -21,8 +21,8 @@ var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
 app.MapPost("/activate", async (HttpRequest req) =>
 {
     using var doc = await JsonDocument.ParseAsync(req.Body);
-    string code   = doc.RootElement.GetProperty("code").GetString();
-    string device = doc.RootElement.GetProperty("device").GetString();
+    string code   = doc.RootElement.TryGetProperty("code", out var codeEl) ? codeEl.GetString() : null;
+    string device = doc.RootElement.TryGetProperty("device", out var deviceEl) ? deviceEl.GetString() : null;
     if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(device))
         return Results.BadRequest(new { error = "code and device are required" });
 

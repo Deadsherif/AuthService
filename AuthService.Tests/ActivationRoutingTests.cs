@@ -75,7 +75,7 @@ public class ActivationRoutingTests
         vm.Code = "aWiS1Tbo2bm";
         await vm.ActivateAsync();
         Assert.Equal("aWiS1Tbo2bm", fake.LastCode);
-        Assert.Equal("TEST-DEVICE", fake.LastDevice);
+        Assert.Equal(DeviceFingerprint.Hash("TEST-DEVICE"), fake.LastDevice);
         Assert.Equal(AuthService.Services.SubscriptionService.SubscriptionStatus.Valid,
                      AuthService.Services.SubscriptionService.Status);
     }
@@ -89,5 +89,19 @@ public class ActivationRoutingTests
         vm.Code = "nope";
         await vm.ActivateAsync();
         Assert.Contains("bad code", vm.Status);
+    }
+
+    [Fact]
+    public async Task Code_MintReturnsInvalidToken_DoesNotActivate()
+    {
+        var fake = new FakeMintClient(new AuthService.Services.Licensing.MintResult { Success = true, Token = "eyJ.garbage.sig" });
+        var storePath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+        var vm = NewVm(storePath);
+        vm.MintClientOverride = fake;
+        vm.Code = "somecode";
+        await vm.ActivateAsync();
+        Assert.NotEqual(AuthService.Services.SubscriptionService.SubscriptionStatus.Valid,
+                        AuthService.Services.SubscriptionService.Status);
+        Assert.Null(new AuthService.Services.Licensing.LicenseStore(storePath).Read()); // nothing stored
     }
 }

@@ -50,7 +50,11 @@ namespace AuthService.MVVM.ViewModel
         public bool IsLoading
         {
             get => _isLoading;
-            set => SetProperty(ref _isLoading, value);
+            set
+            {
+                if (SetProperty(ref _isLoading, value))
+                    (SubmitCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            }
         }
 
         public string CloseButtonText
@@ -180,7 +184,7 @@ namespace AuthService.MVVM.ViewModel
             StatusForeground = System.Windows.Media.Brushes.Black;
             try
             {
-                var result = await MintClientOverride.RequestTokenAsync(code, DeviceOverride).ConfigureAwait(true);
+                var result = await MintClientOverride.RequestTokenAsync(code, DeviceFingerprint.Hash(DeviceOverride)).ConfigureAwait(true);
                 if (result == null || !result.Success)
                 {
                     ServerResponse = string.Empty;
