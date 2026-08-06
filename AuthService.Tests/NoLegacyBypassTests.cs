@@ -109,10 +109,14 @@ public class NoLegacyBypassTests
     // Task 16 cutover: AuthViewModel used to grant Valid two ways without the token gate --
     // OnFirstOptionPremiseAuth (premise auto-auth on Loaded, driven by shared service creds)
     // and ExecuteSubmitCore (legacy short-code marketplace redemption, wired to SubmitCommand).
-    // Both were deleted. The ONLY route to Valid through AuthViewModel is now
-    // ActivateTokenCommand -> ExecuteActivateToken, which requires a verified, device-matched,
-    // unexpired pasted token. This test pins down (reflection) that the old members are
-    // provably gone, not just unreferenced by production code.
+    // Both were deleted.
+    //
+    // Task 4 (single-field activation router) reintroduced `Code` and `SubmitCommand`, but as
+    // a router over the signed-token verify path (ActivateAsync -> VerifyAndStore), not the
+    // old marketplace redemption -- so their presence is no longer a red flag. What must stay
+    // gone is ExecuteSubmitCore itself (the legacy marketplace-calling implementation) and the
+    // premise auto-auth members. This test pins down (reflection) that those are provably
+    // gone, not just unreferenced by production code.
     [Fact]
     public void AuthViewModel_HasNoLegacyValidGrantingMembers()
     {
@@ -126,16 +130,12 @@ public class NoLegacyBypassTests
         // creds and granted Valid on Loaded, with no token and no gate involved.
         Assert.DoesNotContain("OnFirstOptionPremiseAuth", allMembers);
 
-        // Legacy short-code redemption: called the marketplace and granted Valid on success,
-        // with no token and no gate involved.
-        Assert.DoesNotContain("SubmitCommand", allMembers);
-        Assert.DoesNotContain("ExecuteSubmit", allMembers);
+        // Legacy short-code redemption implementation: called the marketplace and granted
+        // Valid on success, with no token and no gate involved. (SubmitCommand/Code/
+        // CanExecuteSubmit/ExecuteSubmit are intentionally NOT asserted absent here -- Task 4
+        // reintroduced them as the activation router's entry point, which routes to the
+        // signed-token verify path, not to this deleted marketplace call.)
         Assert.DoesNotContain("ExecuteSubmitCore", allMembers);
-        Assert.DoesNotContain("CanExecuteSubmit", allMembers);
-
-        // The short-code text field itself -- served no purpose once the redemption flow
-        // that consumed it was deleted.
-        Assert.DoesNotContain("Code", allMembers);
 
         // AuthViewModel must no longer be able to write into LocalAuthCache at all -- those
         // calls only ever existed inside the two removed flows.
@@ -148,16 +148,16 @@ public class NoLegacyBypassTests
         // Sanity check that mirrors the reflection assertion above at the behavior level:
         // build the VM the way AuthWindow.xaml.cs does now (no Loaded-driven side effect,
         // since OnFirstOptionPremiseAuth is gone) and drive every command it exposes except
-        // ActivateTokenCommand (which is exercised, with a real valid token, by
-        // ActivationViewModelTests). None of the remaining commands should be able to grant
-        // Valid.
+        // SubmitCommand with an actual code (which is exercised, with a real valid token, by
+        // ActivationViewModelTests / ActivationRoutingTests). None of the remaining commands
+        // should be able to grant Valid.
         SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.Error);
 
         var vm = new AuthViewModel("Addin", "9F4E7C9b-9B06-4E9D-92BD-1FD0A3A2D7F8");
 
         Assert.True(vm.CloseCommand.CanExecute(null));
         Assert.False(vm.OpenSignupLinkCommand.CanExecute(null)); // no signup link configured
-        Assert.False(vm.ActivateTokenCommand.CanExecute(null));  // no pasted token yet
+        Assert.False(vm.SubmitCommand.CanExecute(null));         // no code entered yet
 
         Assert.NotEqual(SubscriptionService.SubscriptionStatus.Valid, SubscriptionService.Status);
     }

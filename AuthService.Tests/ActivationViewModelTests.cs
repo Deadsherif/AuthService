@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Threading.Tasks;
 using AuthService.MVVM.ViewModel;
 using AuthService.Services.Licensing;
 using Xunit;
@@ -8,7 +9,7 @@ using Xunit;
 public class ActivationViewModelTests
 {
     [Fact]
-    public void PasteValidToken_Activates()
+    public async Task PasteValidToken_Activates()
     {
         var keys = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText("Vectors/keys.json"));
         LicensePublicKeys.LoadForTests(keys.GetProperty("kid").GetString(), keys.GetProperty("publicKeyPem").GetString());
@@ -23,10 +24,10 @@ public class ActivationViewModelTests
             TokenStoreOverride = new LicenseStore(path),
             NowOverride = DateTimeOffset.FromUnixTimeSeconds(1_750_000_000),
             DeviceOverride = "TEST-DEVICE",
-            PastedToken = token
+            Code = token
         };
 
-        vm.ActivateTokenCommand.Execute(null);
+        await vm.ActivateAsync();
 
         Assert.Equal(AuthService.Services.SubscriptionService.SubscriptionStatus.Valid,
                      AuthService.Services.SubscriptionService.Status);
@@ -36,7 +37,7 @@ public class ActivationViewModelTests
     // The stored MaxDateSeen must be seeded with the later of the two -- the token's iat --
     // not just "now", so LicenseGate's anti-rollback ratchet starts at the correct floor.
     [Fact]
-    public void PasteValidToken_SeedsIatFloor_NotJustNow()
+    public async Task PasteValidToken_SeedsIatFloor_NotJustNow()
     {
         var keys = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText("Vectors/keys.json"));
         LicensePublicKeys.LoadForTests(keys.GetProperty("kid").GetString(), keys.GetProperty("publicKeyPem").GetString());
@@ -55,10 +56,10 @@ public class ActivationViewModelTests
             TokenStoreOverride = store,
             NowOverride = now,
             DeviceOverride = "TEST-DEVICE",
-            PastedToken = token
+            Code = token
         };
 
-        vm.ActivateTokenCommand.Execute(null);
+        await vm.ActivateAsync();
 
         Assert.Equal(AuthService.Services.SubscriptionService.SubscriptionStatus.Valid,
                      AuthService.Services.SubscriptionService.Status);
@@ -72,7 +73,7 @@ public class ActivationViewModelTests
     // machine -- the addon may be right and the signature valid, but the device claim
     // (SHA-256 hash of the device id) does not match this VM's DeviceOverride.
     [Fact]
-    public void PasteWrongDeviceToken_IsRejected()
+    public async Task PasteWrongDeviceToken_IsRejected()
     {
         var keys = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText("Vectors/keys.json"));
         LicensePublicKeys.LoadForTests(keys.GetProperty("kid").GetString(), keys.GetProperty("publicKeyPem").GetString());
@@ -91,10 +92,10 @@ public class ActivationViewModelTests
             TokenStoreOverride = store,
             NowOverride = DateTimeOffset.FromUnixTimeSeconds(1_750_000_000),
             DeviceOverride = "TEST-DEVICE",
-            PastedToken = token
+            Code = token
         };
 
-        vm.ActivateTokenCommand.Execute(null);
+        await vm.ActivateAsync();
 
         Assert.NotEqual(AuthService.Services.SubscriptionService.SubscriptionStatus.Valid,
                          AuthService.Services.SubscriptionService.Status);

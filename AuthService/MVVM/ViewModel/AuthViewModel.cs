@@ -3,6 +3,7 @@ using AuthService.Services;
 using AuthService.Services.Licensing;
 using System;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -76,39 +77,33 @@ namespace AuthService.MVVM.ViewModel
 
         public ICommand CloseCommand { get; }
         public ICommand OpenSignupLinkCommand { get; }
-        public ICommand ActivateTokenCommand { get; }
-
-        private string _pastedToken;
 
         // Test seams: production defaults are seeded in the constructor, and unit tests
-        // overwrite them before calling ActivateTokenCommand. Kept as plain (non-nullable)
+        // overwrite them before calling ActivateAsync. Kept as plain (non-nullable)
         // types per the task spec so tests can assign them directly.
         public LicenseStore TokenStoreOverride { get; set; }
         public DateTimeOffset NowOverride { get; set; }
         public string DeviceOverride { get; set; }
 
-        public string PastedToken
+        private string _code;
+        public string Code
         {
-            get => _pastedToken;
+            get => _code;
             set
             {
-                if (SetProperty(ref _pastedToken, value))
-                {
-                    ((RelayCommand)ActivateTokenCommand).RaiseCanExecuteChanged();
-                }
+                if (SetProperty(ref _code, value))
+                    ((RelayCommand)SubmitCommand).RaiseCanExecuteChanged();
             }
         }
 
-        // Shown in the UI so an air-gapped user can mint a token elsewhere for this exact
-        // device without needing network access to this machine.
-        public string DeviceFingerprintDisplay
+        private string _serverResponse;
+        public string ServerResponse
         {
-            get
-            {
-                var hash = DeviceFingerprint.Hash(DeviceFingerprint.CurrentDeviceId());
-                return hash.Length > 12 ? hash.Substring(0, 12) : hash;
-            }
+            get => _serverResponse;
+            set => SetProperty(ref _serverResponse, value);
         }
+
+        public ICommand SubmitCommand { get; }
 
         public AuthViewModel(string Name, string ID, string signupLink = null)
         {
@@ -116,7 +111,7 @@ namespace AuthService.MVVM.ViewModel
             _signupLink = signupLink;
             CloseCommand = new RelayCommand(ExecuteClose, CanExecuteClose);
             OpenSignupLinkCommand = new RelayCommand(ExecuteOpenSignupLink, CanExecuteOpenSignupLink);
-            ActivateTokenCommand = new RelayCommand(ExecuteActivateToken, CanExecuteActivateToken);
+            SubmitCommand = new RelayCommand(ExecuteSubmit, CanExecuteSubmit);
             StatusForeground = System.Windows.Media.Brushes.Black;
             CloseButtonText = "Close";
 
@@ -126,73 +121,111 @@ namespace AuthService.MVVM.ViewModel
             DeviceOverride = DeviceFingerprint.CurrentDeviceId();
         }
 
-        private bool CanExecuteActivateToken(object parameter)
+        private bool CanExecuteSubmit(object parameter) =>
+            !string.IsNullOrWhiteSpace(Code) && !IsLoading;
+
+        private async void ExecuteSubmit(object parameter)
         {
-            return !string.IsNullOrWhiteSpace(PastedToken);
-        }
-
-        private void ExecuteActivateToken(object parameter)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(PastedToken))
-                {
-                    Status = "Paste a license token first";
-                    StatusForeground = System.Windows.Media.Brushes.Red;
-                    return;
-                }
-
-                var verifier = new LicenseTokenVerifier();
-                var result = verifier.Verify(PastedToken, NowOverride);
-
-                // Activation requires a currently-valid (unexpired, correctly-signed) token —
-                // unlike the gate, which also accepts Expired to distinguish "was valid, now
-                // expired" from "never valid". A pasted token that is already expired should
-                // not be accepted as a fresh activation.
-                if (result.Status != VerifyStatus.Valid)
-                {
-                    Status = "Activation failed: token is invalid or expired";
-                    StatusForeground = System.Windows.Media.Brushes.Red;
-                    return;
-                }
-
-                var claims = result.Claims;
-
-                if (!string.IsNullOrEmpty(_guid) &&
-                    !string.Equals(claims.AddonId, _guid, StringComparison.OrdinalIgnoreCase))
-                {
-                    Status = "Activation failed: token is not for this add-in";
-                    StatusForeground = System.Windows.Media.Brushes.Red;
-                    return;
-                }
-
-                if (!DeviceFingerprint.Matches(claims.DeviceHash, DeviceOverride))
-                {
-                    Status = "Activation failed: token was minted for a different device";
-                    StatusForeground = System.Windows.Media.Brushes.Red;
-                    return;
-                }
-
-                var store = TokenStoreOverride ?? LicenseStore.Default();
-
-                // iat floor: seed MaxDateSeen with the later of the token's issue date and
-                // "now", so the anti-rollback ratchet in LicenseGate starts at (at least) the
-                // token's own iat rather than just the activation moment.
-                var seededFloor = claims.IssuedAt > NowOverride ? claims.IssuedAt : NowOverride;
-                store.Write(new StoredLicense { Token = PastedToken, MaxDateSeen = seededFloor });
-
-                SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.Valid);
-                EndDate = claims.Expires.UtcDateTime;
-                Status = "Activated - Valid";
-                StatusForeground = System.Windows.Media.Brushes.Green;
-                CloseButtonText = "Continue";
-                ((RelayCommand)CloseCommand).RaiseCanExecuteChanged();
-            }
+            try { await ActivateAsync(); }
             catch (Exception)
             {
                 Status = "Activation error";
                 StatusForeground = System.Windows.Media.Brushes.Red;
             }
+            finally { IsLoading = false; }
+        }
+
+        internal async Task ActivateAsync()
+        {
+            if (string.IsNullOrWhiteSpace(Code))
+            {
+                Status = "Enter your license code, token, or .FO file path";
+                StatusForeground = System.Windows.Media.Brushes.Red;
+                return;
+            }
+
+            var raw = Code.Trim();
+            switch (ActivationInput.Classify(raw))
+            {
+                case ActivationInputKind.TokenFile:
+                {
+                    if (!System.IO.File.Exists(raw))
+                    {
+                        Status = "Activation failed: file not found";
+                        StatusForeground = System.Windows.Media.Brushes.Red;
+                        return;
+                    }
+                    VerifyAndStore(System.IO.File.ReadAllText(raw).Trim());
+                    return;
+                }
+
+                case ActivationInputKind.Token:
+                    VerifyAndStore(raw);
+                    return;
+
+                case ActivationInputKind.Code:
+                default:
+                    await ActivateWithCodeAsync(raw); // online path — Task 6 implements this
+                    return;
+            }
+        }
+
+        // Task 6 replaces this stub with a real mint-endpoint call.
+        private Task ActivateWithCodeAsync(string code)
+        {
+            Status = "Online activation is not available yet";
+            StatusForeground = System.Windows.Media.Brushes.Red;
+            return Task.CompletedTask;
+        }
+
+        private void VerifyAndStore(string token)
+        {
+            var verifier = new LicenseTokenVerifier();
+            var result = verifier.Verify(token, NowOverride);
+
+            // Activation requires a currently-valid (unexpired, correctly-signed) token —
+            // unlike the gate, which also accepts Expired to distinguish "was valid, now
+            // expired" from "never valid". A token that is already expired should not be
+            // accepted as a fresh activation.
+            if (result.Status != VerifyStatus.Valid)
+            {
+                Status = "Activation failed: token is invalid or expired";
+                StatusForeground = System.Windows.Media.Brushes.Red;
+                return;
+            }
+
+            var claims = result.Claims;
+
+            if (!string.IsNullOrEmpty(_guid) &&
+                !string.Equals(claims.AddonId, _guid, StringComparison.OrdinalIgnoreCase))
+            {
+                Status = "Activation failed: token is not for this add-in";
+                StatusForeground = System.Windows.Media.Brushes.Red;
+                return;
+            }
+
+            if (!DeviceFingerprint.Matches(claims.DeviceHash, DeviceOverride))
+            {
+                Status = "Activation failed: token was minted for a different device";
+                StatusForeground = System.Windows.Media.Brushes.Red;
+                return;
+            }
+
+            var store = TokenStoreOverride ?? LicenseStore.Default();
+
+            // iat floor: seed MaxDateSeen with the later of the token's issue date and
+            // "now", so the anti-rollback ratchet in LicenseGate starts at (at least) the
+            // token's own iat rather than just the activation moment.
+            var seededFloor = claims.IssuedAt > NowOverride ? claims.IssuedAt : NowOverride;
+            store.Write(new StoredLicense { Token = token, MaxDateSeen = seededFloor });
+
+            SubscriptionService.SetStatus(SubscriptionService.SubscriptionStatus.Valid);
+            EndDate = claims.Expires.UtcDateTime;
+            ServerResponse = string.Empty;
+            Status = "Activated - Valid";
+            StatusForeground = System.Windows.Media.Brushes.Green;
+            CloseButtonText = "Continue";
+            ((RelayCommand)CloseCommand).RaiseCanExecuteChanged();
         }
 
         private void ExecuteClose(object parameter)
