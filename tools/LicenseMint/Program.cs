@@ -21,10 +21,10 @@ switch (args[0])
 
     case "mint":
     {
-        // mint <privateKeyPemPath> <kid> <addon> <tier> <iat> <exp> <device>
+        // mint <privateKeyPemPath> <kid> <addon> <tier> <iat> <exp> <deviceFilePath>
         if (args.Length < 8)
         {
-            Console.WriteLine("usage: mint <privateKeyPemPath> <kid> <addon> <tier> <iat> <exp> <device>");
+            Console.WriteLine("usage: mint <privateKeyPemPath> <kid> <addon> <tier> <iat> <exp> <deviceFilePath>");
             return 1;
         }
         string privPem = File.ReadAllText(args[1]);
@@ -33,7 +33,26 @@ switch (args[0])
         string tier = args[4];
         long iat = long.Parse(args[5]);
         long exp = long.Parse(args[6]);
-        string device = args[7];
+
+        // The device value is read from a file (produced by OfflineActivationClient):
+        // first non-empty, trimmed line is the SHA-256(MachineGuid) hex device id.
+        string deviceFile = args[7];
+        if (!File.Exists(deviceFile))
+        {
+            Console.WriteLine($"device file not found: {deviceFile}");
+            return 1;
+        }
+        string device = null;
+        foreach (var line in File.ReadAllLines(deviceFile))
+        {
+            var t = line.Trim();
+            if (t.Length > 0) { device = t; break; }
+        }
+        if (string.IsNullOrEmpty(device))
+        {
+            Console.WriteLine($"device file is empty: {deviceFile}");
+            return 1;
+        }
 
         string token = Mint(privPem, kid, addon, tier, iat, exp, device);
         Console.WriteLine(token);
