@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LicenseMint", "tools\Licens
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OfflineActivationClient", "tools\OfflineActivationClient\OfflineActivationClient.csproj", "{0CD0323F-3563-4E42-8FBE-4695ABCDD028}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MintService", "tools\MintService\MintService.csproj", "{565DF41E-F341-45DC-BE40-BE6496C22E24}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Net Framework 4.7|Any CPU = Net Framework 4.7|Any CPU
@@ -152,6 +154,36 @@ Global
 		{0CD0323F-3563-4E42-8FBE-4695ABCDD028}.Release|x64.Build.0 = Release|Any CPU
 		{0CD0323F-3563-4E42-8FBE-4695ABCDD028}.Release|x86.ActiveCfg = Release|Any CPU
 		{0CD0323F-3563-4E42-8FBE-4695ABCDD028}.Release|x86.Build.0 = Release|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Net Framework 4.7|Any CPU.ActiveCfg = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Net Framework 4.7|Any CPU.Build.0 = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Net Framework 4.7|x64.ActiveCfg = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Net Framework 4.7|x64.Build.0 = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Net Framework 4.7|x86.ActiveCfg = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Net Framework 4.7|x86.Build.0 = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Net Framework 4.8.1|Any CPU.ActiveCfg = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Net Framework 4.8.1|Any CPU.Build.0 = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Net Framework 4.8.1|x64.ActiveCfg = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Net Framework 4.8.1|x64.Build.0 = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Net Framework 4.8.1|x86.ActiveCfg = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Net Framework 4.8.1|x86.Build.0 = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Net8.0-windows|Any CPU.ActiveCfg = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Net8.0-windows|Any CPU.Build.0 = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Net8.0-windows|x64.ActiveCfg = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Net8.0-windows|x64.Build.0 = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Net8.0-windows|x86.ActiveCfg = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Net8.0-windows|x86.Build.0 = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Debug|x64.Build.0 = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Debug|x86.Build.0 = Debug|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Release|Any CPU.Build.0 = Release|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Release|x64.ActiveCfg = Release|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Release|x64.Build.0 = Release|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Release|x86.ActiveCfg = Release|Any CPU
+		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -159,6 +191,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{A10A5E54-8AF4-4A5B-BB7B-BBF56176ABB1} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 		{0CD0323F-3563-4E42-8FBE-4695ABCDD028} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
+		{565DF41E-F341-45DC-BE40-BE6496C22E24} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {E5990501-6FEE-4CE1-B2B1-4744DD95D17B}
