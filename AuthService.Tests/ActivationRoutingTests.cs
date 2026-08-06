@@ -100,8 +100,10 @@ public class ActivationRoutingTests
         vm.MintClientOverride = fake;
         vm.Code = "somecode";
         await vm.ActivateAsync();
-        Assert.NotEqual(AuthService.Services.SubscriptionService.SubscriptionStatus.Valid,
-                        AuthService.Services.SubscriptionService.Status);
+        // Assert on isolated per-instance/store state, NOT the process-global
+        // SubscriptionService.Status (which other tests mutate): an invalid mint
+        // response must neither persist a token nor report success on this VM.
         Assert.Null(new AuthService.Services.Licensing.LicenseStore(storePath).Read()); // nothing stored
+        Assert.Contains("invalid", vm.Status); // VM reported failure (message is lowercase "invalid")
     }
 }
