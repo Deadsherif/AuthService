@@ -22,6 +22,26 @@ namespace AuthService.Services.Licensing
     {
         public static string MintUrl =>
             Environment.GetEnvironmentVariable("FIRSTOPTION_MINT_URL") ?? "https://REPLACE-ME.invalid/activate";
+
+        public static string MarketplaceRedemptionsUrl =>
+            Environment.GetEnvironmentVariable("FIRSTOPTION_MARKETPLACE_URL")
+            ?? "https://marketplace.firstoption-es.com/api/subscriptions/redemptions";
+
+        public static string MarketplaceRedeemUrl =>
+            Environment.GetEnvironmentVariable("FIRSTOPTION_MARKETPLACE_REDEEM_URL")
+            ?? "https://marketplace.firstoption-es.com/api/subscriptions/redeem";
+
+        // The real mint service is "configured" once FIRSTOPTION_MINT_URL is set to a
+        // real URL (not unset, not the placeholder). Until then the client uses the
+        // legacy registration fallback.
+        public static bool MintConfigured
+        {
+            get
+            {
+                var url = Environment.GetEnvironmentVariable("FIRSTOPTION_MINT_URL");
+                return !string.IsNullOrWhiteSpace(url) && url.IndexOf("REPLACE-ME.invalid", StringComparison.OrdinalIgnoreCase) < 0;
+            }
+        }
     }
 
     public sealed class HttpMintClient : IMintClient
