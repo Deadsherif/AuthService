@@ -91,6 +91,7 @@
     <Compile Include="Services\Licensing\RollbackRatchet.cs" />
     <Compile Include="Services\Licensing\LicenseStore.cs" />
     <Compile Include="Services\Licensing\LicenseGate.cs" />
+    <Compile Include="Services\Licensing\ActivationInput.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Net.Http.Json" Version="8.0.0" />
