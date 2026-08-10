@@ -1,11 +1,18 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Win32;
 
 namespace AuthService.Services.Licensing
 {
     public static class DeviceFingerprint
     {
+        internal static Action<string> DiagnosticWriter = message => Trace.WriteLine("[DeviceFingerprint] " + message);
+
+        public static IReadOnlyList<string> LastDiagnostics { get; private set; } = Array.Empty<string>();
+
         public static string Hash(string deviceId)
         {
             if (deviceId == null) deviceId = string.Empty;
@@ -22,12 +29,57 @@ namespace AuthService.Services.Licensing
 
         public static string CurrentDeviceId()
         {
-            try
+            const string subKey = @"SOFTWARE\Microsoft\Cryptography";
+            const string valueName = "MachineGuid";
+
+            var result = ReadMachineGuid(Registry.LocalMachine, subKey, valueName);
+
+            if (string.IsNullOrEmpty(result) && Environment.Is64BitOperatingSystem && !Environment.Is64BitProcess)
             {
-                using (var k = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Cryptography"))
-                    return (k?.GetValue("MachineGuid") as string) ?? string.Empty;
+                using (var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
+                {
+                    var from64 = ReadMachineGuid(baseKey, subKey, valueName);
+                    if (!string.IsNullOrEmpty(from64))
+                    {
+                        result = from64;
+                    }
+                }
             }
-            catch { return string.Empty; }
+
+            return result;
+        }
+
+        static string ReadMachineGuid(RegistryKey hive, string subKey, string valueName)
+        {
+            using (var k = hive.OpenSubKey(subKey))
+            {
+                if (k == null)
+                {
+                    return string.Empty;
+                }
+
+                var raw = k.GetValue(valueName);
+                if (raw == null)
+                {
+
+                    return string.Empty;
+                }
+
+                var guid = raw as string;
+                if (guid == null)
+                {
+
+                    return string.Empty;
+                }
+
+                if (guid.Length == 0)
+                {
+
+                    return string.Empty;
+                }
+
+                return guid;
+            }
         }
 
         private static string ToHex(byte[] b)

@@ -11,6 +11,13 @@ namespace AuthService.Services.Licensing
 
         public static void LoadForTests(string kid, string pem) => Pems[kid] = pem;
 
+        static LicensePublicKeys()
+        {
+            Pems["k1"] = "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEQrschhGf2ACmQiUwW6OIDLZ5nEKG" +
+                "\nYCN0b3XW2l5LLEXl5lqYwBDIJsMOzmKIzNvgUMNAI5yb4K1cwxDUYtlZyQ==\n-----END PUBLIC KEY-----";
+            // (add a second kid here later to rotate without bricking issued tokens)
+        }
+
         public static ECDsa Resolve(string kid)
         {
             if (kid == null || !Pems.TryGetValue(kid, out var pem)) return null;
