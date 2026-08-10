@@ -225,7 +225,7 @@ namespace AuthService.MVVM.ViewModel
                 {
                     Status = "Your device has been registered. Your license will be issued shortly.";
                     StatusForeground = System.Windows.Media.Brushes.Green;
-                    ServerResponse = "Device ID: " + deviceHash;
+                    ServerResponse = "Registration is bending Approval you will receive an email soon";
                 }
                 else
                 {
