@@ -39,7 +39,7 @@ public class LegacyActivationClientTests
         Assert.True(result.Registered);
         Assert.Contains("code=aWiS1Tbo2bm", stub.RequestUrls[0]);
         Assert.Contains("redeem", stub.RequestUrls[1]);
-        Assert.Contains("data%5B%5D=6be0412a-devicehash", stub.RequestUrls[1]); // data[] url-encoded
+        Assert.Contains("data[]=6be0412a-devicehash", stub.RequestUrls[1]); // literal data[], matches master
     }
 
     [Fact]

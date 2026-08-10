@@ -49,7 +49,9 @@ namespace AuthService.Services.Licensing
                         return new LegacyActivationResult { CodeValid = false, Error = "Code not found" };
                 }
 
-                var postUrl = _redeemUrl + "?code=" + Uri.EscapeDataString(code) + "&data%5B%5D=" + Uri.EscapeDataString(deviceHash);
+                // Matches the original master redeem call verbatim: raw code, literal
+                // data[] array key, raw data value (marketplace expects PHP-style data[]).
+                var postUrl = _redeemUrl + "?code=" + code + "&data[]=" + deviceHash;
                 using (var postResp = await _http.PostAsync(postUrl, null).ConfigureAwait(false))
                 {
                     if (!postResp.IsSuccessStatusCode)
