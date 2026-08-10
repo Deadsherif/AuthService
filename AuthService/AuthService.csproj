@@ -93,6 +93,7 @@
     <Compile Include="Services\Licensing\LicenseGate.cs" />
     <Compile Include="Services\Licensing\ActivationInput.cs" />
     <Compile Include="Services\Licensing\MintClient.cs" />
+    <Compile Include="Services\Licensing\LegacyActivationClient.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Net.Http.Json" Version="8.0.0" />

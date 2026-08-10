@@ -89,6 +89,8 @@ namespace AuthService.MVVM.ViewModel
         public DateTimeOffset NowOverride { get; set; }
         public string DeviceOverride { get; set; }
         public IMintClient MintClientOverride { get; set; }
+        public ILegacyActivationClient LegacyClientOverride { get; set; }
+        public bool UseLegacyActivation { get; set; }
 
         private string _code;
         public string Code
@@ -125,6 +127,11 @@ namespace AuthService.MVVM.ViewModel
             NowOverride = DateTimeOffset.UtcNow;
             DeviceOverride = DeviceFingerprint.CurrentDeviceId();
             MintClientOverride = new HttpMintClient(new System.Net.Http.HttpClient(), ActivationEndpoints.MintUrl);
+            LegacyClientOverride = new HttpLegacyActivationClient(
+                new System.Net.Http.HttpClient(),
+                ActivationEndpoints.MarketplaceRedemptionsUrl,
+                ActivationEndpoints.MarketplaceRedeemUrl);
+            UseLegacyActivation = !ActivationEndpoints.MintConfigured;
         }
 
         private bool CanExecuteSubmit(object parameter) =>
@@ -171,7 +178,10 @@ namespace AuthService.MVVM.ViewModel
 
                 case ActivationInputKind.Code:
                 default:
-                    await ActivateWithCodeAsync(raw); // online path — Task 6 implements this
+                    if (UseLegacyActivation)
+                        await RegisterLegacyAsync(raw);
+                    else
+                        await ActivateWithCodeAsync(raw);
                     return;
             }
         }
@@ -193,6 +203,36 @@ namespace AuthService.MVVM.ViewModel
                     return;
                 }
                 VerifyAndStore(result.Token);
+            }
+            finally { IsLoading = false; }
+        }
+
+        // Interim path used until the mint service is live: validate the code and register
+        // this machine's device hash with the marketplace, then tell the user their license
+        // is coming. Deliberately grants NO access - the provider mints tokens manually from
+        // the registered hashes.
+        private async Task RegisterLegacyAsync(string code)
+        {
+            IsLoading = true;
+            ServerResponse = "Registering with the activation server...";
+            Status = string.Empty;
+            StatusForeground = System.Windows.Media.Brushes.Black;
+            try
+            {
+                var deviceHash = DeviceFingerprint.Hash(DeviceOverride);
+                var result = await LegacyClientOverride.RegisterAsync(code, deviceHash).ConfigureAwait(true);
+                if (result != null && result.Registered)
+                {
+                    Status = "Your device has been registered. Your license will be issued shortly.";
+                    StatusForeground = System.Windows.Media.Brushes.Green;
+                    ServerResponse = "Device ID: " + deviceHash;
+                }
+                else
+                {
+                    Status = "Registration failed: " + (result?.Error ?? "no response");
+                    StatusForeground = System.Windows.Media.Brushes.Red;
+                    ServerResponse = string.Empty;
+                }
             }
             finally { IsLoading = false; }
         }
