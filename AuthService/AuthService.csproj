@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Net8.0-windows</Configuration>
@@ -80,6 +80,7 @@
 		  <DependentUpon>MVVM\View\AuthWindow.xaml</DependentUpon>
 	  </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Services\DependencyResolver.cs" />
     <Compile Include="Services\DateHelper.cs" />
     <Compile Include="Services\DateTimeConverter.cs" />
     <Compile Include="Services\SubscriptionService.cs" />

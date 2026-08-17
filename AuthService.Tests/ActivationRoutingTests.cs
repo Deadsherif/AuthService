@@ -115,7 +115,10 @@ public class ActivationRoutingTests
         private readonly AuthService.Services.Licensing.LegacyActivationResult _r;
         public string LastCode; public string LastDevice;
         public FakeLegacyClient(AuthService.Services.Licensing.LegacyActivationResult r) { _r = r; }
-        public Task<AuthService.Services.Licensing.LegacyActivationResult> RegisterAsync(string code, string deviceHash)
+        public Task<AuthService.Services.Licensing.LegacyActivationResult> RegisterAsync(
+            string code,
+            string deviceHash,
+            System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
         { LastCode = code; LastDevice = deviceHash; return Task.FromResult(_r); }
     }
 

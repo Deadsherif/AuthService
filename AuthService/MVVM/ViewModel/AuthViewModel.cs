@@ -127,8 +127,9 @@ namespace AuthService.MVVM.ViewModel
             NowOverride = DateTimeOffset.UtcNow;
             DeviceOverride = DeviceFingerprint.CurrentDeviceId();
             MintClientOverride = new HttpMintClient(new System.Net.Http.HttpClient(), ActivationEndpoints.MintUrl);
+            var legacyHttp = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) };
             LegacyClientOverride = new HttpLegacyActivationClient(
-                new System.Net.Http.HttpClient(),
+                legacyHttp,
                 ActivationEndpoints.MarketplaceRedemptionsUrl,
                 ActivationEndpoints.MarketplaceRedeemUrl);
             UseLegacyActivation = !ActivationEndpoints.MintConfigured;
@@ -178,10 +179,15 @@ namespace AuthService.MVVM.ViewModel
 
                 case ActivationInputKind.Code:
                 default:
-                    if (UseLegacyActivation)
+                    //if (UseLegacyActivation)
+                    //    await RegisterLegacyAsync(raw);
+                    //else
+                    //    await ActivateWithCodeAsync(raw);
+                    await ActivateWithCodeAsync(raw);
+                    if (SubscriptionService.Status != SubscriptionService.SubscriptionStatus.Valid)
+                    {
                         await RegisterLegacyAsync(raw);
-                    else
-                        await ActivateWithCodeAsync(raw);
+                    }
                     return;
             }
         }
@@ -220,18 +226,21 @@ namespace AuthService.MVVM.ViewModel
             try
             {
                 var deviceHash = DeviceFingerprint.Hash(DeviceOverride);
-                var result = await LegacyClientOverride.RegisterAsync(code, deviceHash).ConfigureAwait(true);
-                if (result != null && result.Registered)
+                using (var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10)))
                 {
-                    Status = "Your device has been registered. Your license will be issued shortly.";
-                    StatusForeground = System.Windows.Media.Brushes.Green;
-                    ServerResponse = "Registration is bending Approval you will receive an email soon";
-                }
-                else
-                {
-                    Status = "Registration failed: " + (result?.Error ?? "no response");
-                    StatusForeground = System.Windows.Media.Brushes.Red;
-                    ServerResponse = string.Empty;
+                    var result = await LegacyClientOverride.RegisterAsync(code, deviceHash, cts.Token).ConfigureAwait(true);
+                    if (result != null && result.Registered)
+                    {
+                        Status = "Your device has been registered. Your license will be issued shortly.";
+                        StatusForeground = System.Windows.Media.Brushes.Green;
+                        ServerResponse = "Registration is bending Approval you will receive an email soon";
+                    }
+                    else
+                    {
+                        Status = "Registration failed: " + (result?.Error ?? "no response");
+                        StatusForeground = System.Windows.Media.Brushes.Red;
+                        ServerResponse = string.Empty;
+                    }
                 }
             }
             finally { IsLoading = false; }

@@ -14,7 +14,7 @@ namespace AuthService.Services.Licensing
 
     public interface ILegacyActivationClient
     {
-        Task<LegacyActivationResult> RegisterAsync(string code, string deviceHash);
+        Task<LegacyActivationResult> RegisterAsync(string code, string deviceHash, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
     }
 
     // Interim fallback used until the real mint service is deployed. Validates the code
@@ -34,12 +34,12 @@ namespace AuthService.Services.Licensing
             _redeemUrl = redeemUrl;
         }
 
-        public async Task<LegacyActivationResult> RegisterAsync(string code, string deviceHash)
+        public async Task<LegacyActivationResult> RegisterAsync(string code, string deviceHash, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
         {
             try
             {
                 var getUrl = _redemptionsUrl + "?code=" + Uri.EscapeDataString(code);
-                using (var getResp = await _http.GetAsync(getUrl).ConfigureAwait(false))
+                using (var getResp = await _http.GetAsync(getUrl, cancellationToken).ConfigureAwait(false))
                 {
                     if (!getResp.IsSuccessStatusCode)
                         return new LegacyActivationResult { CodeValid = false, Error = "Code not found or server unavailable" };
@@ -52,7 +52,7 @@ namespace AuthService.Services.Licensing
                 // Matches the original master redeem call verbatim: raw code, literal
                 // data[] array key, raw data value (marketplace expects PHP-style data[]).
                 var postUrl = _redeemUrl + "?code=" + code + "&data[]=" + deviceHash;
-                using (var postResp = await _http.PostAsync(postUrl, null).ConfigureAwait(false))
+                using (var postResp = await _http.PostAsync(postUrl, null, cancellationToken).ConfigureAwait(false))
                 {
                     if (!postResp.IsSuccessStatusCode)
                         return new LegacyActivationResult { CodeValid = true, Registered = false, Error = "Could not register this device" };
