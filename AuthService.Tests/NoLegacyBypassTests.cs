@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using System.Windows;
 using AuthService;
 using AuthService.MVVM.ViewModel;
 using AuthService.Services;
@@ -156,7 +157,8 @@ public class NoLegacyBypassTests
         var vm = new AuthViewModel("Addin", "9F4E7C9b-9B06-4E9D-92BD-1FD0A3A2D7F8");
 
         Assert.True(vm.CloseCommand.CanExecute(null));
-        Assert.False(vm.OpenSignupLinkCommand.CanExecute(null)); // no signup link configured
+        Assert.True(vm.OpenSignupLinkCommand.CanExecute(null));  // defaults to ActivationEndpoints.SignupUrl
+        Assert.Equal(Visibility.Visible, vm.SignupLinkVisibility);
         Assert.False(vm.SubmitCommand.CanExecute(null));         // no code entered yet
 
         Assert.NotEqual(SubscriptionService.SubscriptionStatus.Valid, SubscriptionService.Status);

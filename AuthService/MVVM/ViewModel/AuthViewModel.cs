@@ -32,14 +32,42 @@ namespace AuthService.MVVM.ViewModel
         public DateTime EndDate
         {
             get => _endDate;
-            set => SetProperty(ref _endDate, value);
+            set
+            {
+                if (SetProperty(ref _endDate, value))
+                {
+                    OnPropertyChanged(nameof(ExpiryVisibility));
+                    OnPropertyChanged(nameof(StatusCardVisibility));
+                }
+            }
         }
 
         public string Status
         {
             get => _status;
-            set => SetProperty(ref _status, value);
+            set
+            {
+                if (SetProperty(ref _status, value))
+                {
+                    OnPropertyChanged(nameof(StatusVisibility));
+                    OnPropertyChanged(nameof(StatusCardVisibility));
+                }
+            }
         }
+
+        // The subscription card and each of its rows stay out of the layout entirely until
+        // they have something real to show - an unset EndDate would otherwise render as the
+        // DateTime.MinValue placeholder ("0001/01/01").
+        public Visibility StatusVisibility =>
+            string.IsNullOrWhiteSpace(Status) ? Visibility.Collapsed : Visibility.Visible;
+
+        public Visibility ExpiryVisibility =>
+            EndDate == default(DateTime) ? Visibility.Collapsed : Visibility.Visible;
+
+        public Visibility StatusCardVisibility =>
+            StatusVisibility == Visibility.Collapsed && ExpiryVisibility == Visibility.Collapsed
+                ? Visibility.Collapsed
+                : Visibility.Visible;
 
         public System.Windows.Media.Brush StatusForeground
         {
@@ -115,7 +143,11 @@ namespace AuthService.MVVM.ViewModel
         public AuthViewModel(string Name, string ID, string signupLink = null)
         {
             _guid = ID;
-            _signupLink = signupLink;
+            // Fall back to the marketplace registration page so the "Sign up" link is always
+            // offered; callers that pass their own link keep overriding it.
+            _signupLink = string.IsNullOrWhiteSpace(signupLink)
+                ? ActivationEndpoints.SignupUrl
+                : signupLink;
             CloseCommand = new RelayCommand(ExecuteClose, CanExecuteClose);
             OpenSignupLinkCommand = new RelayCommand(ExecuteOpenSignupLink, CanExecuteOpenSignupLink);
             SubmitCommand = new RelayCommand(ExecuteSubmit, CanExecuteSubmit);

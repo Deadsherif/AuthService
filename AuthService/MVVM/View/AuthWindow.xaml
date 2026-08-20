@@ -6,8 +6,9 @@
         xmlns:local="clr-namespace:AuthService.MVVM.View"
         mc:Ignorable="d"
         Title="First Option - Authentication" 
-        Height="450" 
+        MinHeight="450"
         Width="400"
+        SizeToContent="Height"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         WindowStyle="None"
@@ -131,7 +132,7 @@
                 <!-- Input Field -->
                 <RowDefinition Height="Auto"/>
                 <!-- Buttons -->
-                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
                 <!-- Status Info -->
                 <RowDefinition Height="Auto"/>
                 <!-- Footer/Response -->
@@ -179,11 +180,12 @@
             </StackPanel>
 
             <!-- Status Information Card -->
-            <Border Grid.Row="4" 
-                    Background="{StaticResource SecondaryBlackBrush}" 
-                    CornerRadius="10" 
+            <Border Grid.Row="4"
+                    Background="{StaticResource SecondaryBlackBrush}"
+                    CornerRadius="10"
                     Padding="20"
-                    VerticalAlignment="Top">
+                    VerticalAlignment="Top"
+                    Visibility="{Binding StatusCardVisibility}">
                 <StackPanel>
                     <TextBlock Text="Subscription Details" 
                                Foreground="{StaticResource TextGrayBrush}" 
@@ -197,27 +199,32 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel>
-                            <TextBlock Text="Current Status" Foreground="{StaticResource TextGrayBrush}" FontSize="11"/>
-                            <TextBlock Text="{Binding Status}" 
-                                       Foreground="{Binding StatusForeground}" 
-                                       FontSize="14" 
-                                       FontWeight="SemiBold"
-                                       Margin="0,2,0,10"
-                                       TextWrapping="Wrap"/>
+                            <StackPanel Visibility="{Binding StatusVisibility}">
+                                <TextBlock Text="Current Status" Foreground="{StaticResource TextGrayBrush}" FontSize="11"/>
+                                <TextBlock Text="{Binding Status}"
+                                           Foreground="{Binding StatusForeground}"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           Margin="0,2,0,0"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
 
-                            <TextBlock Text="Expiry Date" Foreground="{StaticResource TextGrayBrush}" FontSize="11"/>
-                            <TextBlock Text="{Binding EndDate, StringFormat={}{0:yyyy/MM/dd}}" 
-                                       Foreground="{StaticResource TextWhiteBrush}" 
-                                       FontSize="14" 
-                                       FontWeight="SemiBold"
-                                       Margin="0,2,0,0"/>
+                            <StackPanel Margin="0,10,0,0" Visibility="{Binding ExpiryVisibility}">
+                                <TextBlock Text="Expiry Date" Foreground="{StaticResource TextGrayBrush}" FontSize="11"/>
+                                <TextBlock Text="{Binding EndDate, StringFormat={}{0:yyyy/MM/dd}}"
+                                           Foreground="{StaticResource TextWhiteBrush}"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           Margin="0,2,0,0"/>
+                            </StackPanel>
                         </StackPanel>
 
                         <!-- Visual Indicator Icon (Simplified) -->
-                        <Border Grid.Column="1" 
-                                Width="40" Height="40" 
-                                CornerRadius="20" 
+                        <Border Grid.Column="1"
+                                Width="40" Height="40"
+                                CornerRadius="20"
                                 Background="#15FFFFFF"
+                                Margin="12,0,0,0"
                                 VerticalAlignment="Top">
                             <Ellipse Width="12" Height="12" Fill="{Binding StatusForeground}"/>
                         </Border>
@@ -241,8 +248,15 @@
                              Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
                 <Grid Grid.Row="1" Margin="0,10,0,0">
-                    <TextBlock HorizontalAlignment="Left"
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0"
+                               HorizontalAlignment="Left"
                                VerticalAlignment="Center"
+                               Margin="0,0,10,0"
                                Visibility="{Binding SignupLinkVisibility}">
                         <Hyperlink Command="{Binding DataContext.OpenSignupLinkCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                    Foreground="{StaticResource GoldAccentBrush}"
@@ -251,12 +265,13 @@
                         </Hyperlink>
                     </TextBlock>
 
-                    <TextBlock Text="{Binding ServerResponse}" 
-                               Foreground="{StaticResource GoldAccentBrush}" 
-                               FontSize="12" 
-                               HorizontalAlignment="Center"
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding ServerResponse}"
+                               Foreground="{StaticResource GoldAccentBrush}"
+                               FontSize="12"
+                               VerticalAlignment="Center"
                                TextWrapping="Wrap"
-                               TextAlignment="Center"/>
+                               TextAlignment="Right"/>
                 </Grid>
             </Grid>
         </Grid>

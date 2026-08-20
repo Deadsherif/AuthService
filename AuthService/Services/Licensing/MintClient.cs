@@ -32,6 +32,13 @@ namespace AuthService.Services.Licensing
             Environment.GetEnvironmentVariable("FIRSTOPTION_MARKETPLACE_REDEEM_URL")
             ?? "https://marketplace.firstoption-es.com/api/subscriptions/redeem";
 
+        // Where the Auth window's "Sign up" link points when the consuming add-in does not
+        // pass its own signupLink to Auth.ValidateAuth. Without this the link was silently
+        // collapsed in every add-in that omitted the optional argument.
+        public static string SignupUrl =>
+            Environment.GetEnvironmentVariable("FIRSTOPTION_SIGNUP_URL")
+            ?? "https://marketplace.firstoption-es.com/en/register";
+
         // The real mint service is "configured" once FIRSTOPTION_MINT_URL is set to a
         // real URL (not unset, not the placeholder). Until then the client uses the
         // legacy registration fallback.
