@@ -19,7 +19,7 @@ namespace AuthService.Services
         internal static void SetStatus(SubscriptionStatus s) => Status = s;
 
         private readonly HttpClient _httpClient;
-        private const string RedemptionsUrl = "https://marketplace.firstoption-es.com/api/subscriptions/redemptions";
+        private const string RedemptionsUrl = "http://127.0.0.1:8000/api/subscriptions/redemptions"; // TEMP LOCAL TEST - restore SubscriptionService.cs.bak before shipping
 
         public SubscriptionService()
         {

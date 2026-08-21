@@ -1,11 +1,23 @@
 {
-  "profiles": {
-    "AuthService": {
-      "commandName": "Project"
-    },
-    "Profile 1": {
-      "commandName": "Executable",
-      "executablePath": "C:\\Program Files\\Autodesk\\Revit 2024\\Revit.exe"
+    "profiles": {
+        "AuthService": {
+            "commandName": "Project",
+            "environmentVariables": {
+                "FIRSTOPTION_MINT_URL": "http://127.0.0.1:8000/activate",
+                "FIRSTOPTION_MARKETPLACE_URL": "http://127.0.0.1:8000/api/subscriptions/redemptions",
+                "FIRSTOPTION_MARKETPLACE_REDEEM_URL": "http://127.0.0.1:8000/api/subscriptions/redeem",
+                "FIRSTOPTION_SIGNUP_URL": "http://127.0.0.1:8000/en/register"
+            }
+        },
+        "Profile 1": {
+            "commandName": "Executable",
+            "executablePath": "C:\\Program Files\\Autodesk\\Revit 2024\\Revit.exe",
+            "environmentVariables": {
+                "FIRSTOPTION_MINT_URL": "http://127.0.0.1:8000/activate",
+                "FIRSTOPTION_MARKETPLACE_URL": "http://127.0.0.1:8000/api/subscriptions/redemptions",
+                "FIRSTOPTION_MARKETPLACE_REDEEM_URL": "http://127.0.0.1:8000/api/subscriptions/redeem",
+                "FIRSTOPTION_SIGNUP_URL": "http://127.0.0.1:8000/en/register"
+            }
+        }
     }
-  }
 }

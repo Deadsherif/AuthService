@@ -19,25 +19,30 @@ namespace AuthService.Services.Licensing
         Task<MintResult> RequestTokenAsync(string code, string deviceId);
     }
 
+    // =====================================================================
+    // TEMPORARY LOCAL-TEST DEFAULTS - DO NOT SHIP.
+    // The four URLs below point at a developer machine (127.0.0.1:8000).
+    // Restore MintClient.cs.bak before building anything for a customer.
+    // =====================================================================
     public static class ActivationEndpoints
     {
         public static string MintUrl =>
-            Environment.GetEnvironmentVariable("FIRSTOPTION_MINT_URL") ?? "https://vercel-portal-auth-service.vercel.app/activate";
+            Environment.GetEnvironmentVariable("FIRSTOPTION_MINT_URL") ?? "http://127.0.0.1:8000/activate";
 
         public static string MarketplaceRedemptionsUrl =>
             Environment.GetEnvironmentVariable("FIRSTOPTION_MARKETPLACE_URL")
-            ?? "https://marketplace.firstoption-es.com/api/subscriptions/redemptions";
+            ?? "http://127.0.0.1:8000/api/subscriptions/redemptions";
 
         public static string MarketplaceRedeemUrl =>
             Environment.GetEnvironmentVariable("FIRSTOPTION_MARKETPLACE_REDEEM_URL")
-            ?? "https://marketplace.firstoption-es.com/api/subscriptions/redeem";
+            ?? "http://127.0.0.1:8000/api/subscriptions/redeem";
 
         // Where the Auth window's "Sign up" link points when the consuming add-in does not
         // pass its own signupLink to Auth.ValidateAuth. Without this the link was silently
         // collapsed in every add-in that omitted the optional argument.
         public static string SignupUrl =>
             Environment.GetEnvironmentVariable("FIRSTOPTION_SIGNUP_URL")
-            ?? "https://marketplace.firstoption-es.com/en/register";
+            ?? "http://127.0.0.1:8000/en/register";
 
         // The real mint service is "configured" once FIRSTOPTION_MINT_URL is set to a
         // real URL (not unset, not the placeholder). Until then the client uses the
