@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace AuthService.Services.Licensing
@@ -8,28 +10,50 @@ namespace AuthService.Services.Licensing
     {
         public string Token { get; set; }
         public DateTimeOffset MaxDateSeen { get; set; }
+        public bool IsRevoked { get; set; }
     }
 
     public sealed class LicenseStore
     {
         private readonly string _path;
-        public LicenseStore(string path) { _path = path; }
+        private readonly string _legacyPath;
+
+        public LicenseStore(string path) : this(path, null) { }
+
+        private LicenseStore(string path, string legacyPath)
+        {
+            _path = path;
+            _legacyPath = legacyPath;
+        }
 
         // Production default: a dedicated license file under the same LocalApplicationData
         // root LocalAuthCache uses, kept in its own subfolder so it never collides with the
         // legacy forgeable cache file (which is being phased out by the license gate).
         public static LicenseStore Default()
         {
-            var dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "FirstOption", "AuthService");
-            return new LicenseStore(Path.Combine(dir, "license.json"));
+            return new LicenseStore(Path.Combine(DefaultRoot(), "license.json"));
+        }
+
+        // Each add-in owns a separate license.json. If the add-in-specific file has not
+        // been created yet, Read() falls back to the old shared file. A successful gate
+        // evaluation then writes the same token into the new location, migrating it without
+        // forcing existing customers to activate again.
+        public static LicenseStore Default(string addinId)
+        {
+            if (string.IsNullOrWhiteSpace(addinId))
+                throw new ArgumentException("An add-in ID is required.", nameof(addinId));
+
+            var root = DefaultRoot();
+            var path = Path.Combine(root, AddinFolderName(addinId), "license.json");
+            return new LicenseStore(path, Path.Combine(root, "license.json"));
         }
 
         public StoredLicense Read()
         {
-            try { return File.Exists(_path) ? JsonSerializer.Deserialize<StoredLicense>(File.ReadAllText(_path)) : null; }
-            catch { return null; }
+            var path = File.Exists(_path) ? _path : _legacyPath;
+            return !string.IsNullOrEmpty(path) && File.Exists(path)
+                ? JsonSerializer.Deserialize<StoredLicense>(File.ReadAllText(path))
+                : null;
         }
 
         public void Write(StoredLicense license)
@@ -39,6 +63,38 @@ namespace AuthService.Services.Licensing
             File.WriteAllText(_path, JsonSerializer.Serialize(license));
         }
 
-        public void Clear() { try { if (File.Exists(_path)) File.Delete(_path); } catch { } }
+        public void Clear()
+        {
+            if (File.Exists(_path)) File.Delete(_path);
+        }
+
+        public void Revoke()
+        {
+            var license = Read();
+            if (license == null) return;
+
+            license.IsRevoked = true;
+            Write(license);
+        }
+
+        private static string DefaultRoot() => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "FirstOption", "AuthService");
+
+        private static string AddinFolderName(string addinId)
+        {
+            if (Guid.TryParse(addinId, out var guid))
+                return guid.ToString("D");
+
+            // Non-GUID IDs are hashed so they cannot escape the AuthService directory or
+            // introduce characters that are invalid in a Windows path.
+            using (var sha = SHA256.Create())
+            {
+                var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(addinId.Trim().ToUpperInvariant()));
+                var name = new StringBuilder(bytes.Length * 2);
+                foreach (var value in bytes) name.Append(value.ToString("x2"));
+                return name.ToString();
+            }
+        }
     }
 }

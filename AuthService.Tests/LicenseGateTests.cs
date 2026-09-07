@@ -177,4 +177,31 @@ public class LicenseGateTests
 
         Assert.Equal(GateStatus.Invalid, status);
     }
+
+    [Fact]
+    public void OnlineDateBeforeRatchet_IsTimeContradiction()
+    {
+        var keys = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText("Vectors/keys.json"));
+        LicensePublicKeys.LoadForTests(keys.GetProperty("kid").GetString(), keys.GetProperty("publicKeyPem").GetString());
+        var vectors = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText("Vectors/vectors.json"));
+        string token = null;
+        foreach (var v in vectors.EnumerateArray())
+            if (v.GetProperty("name").GetString() == "valid") token = v.GetProperty("token").GetString();
+
+        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+        var store = new LicenseStore(path);
+        store.Write(new StoredLicense
+        {
+            Token = token,
+            MaxDateSeen = DateTimeOffset.FromUnixTimeSeconds(1_750_000_000)
+        });
+
+        var status = new LicenseGate(store).Evaluate(
+            "9F4E7C9b-9B06-4E9D-92BD-1FD0A3A2D7F8",
+            "TEST-DEVICE",
+            DateTimeOffset.FromUnixTimeSeconds(1_750_000_001),
+            DateTimeOffset.FromUnixTimeSeconds(1_700_000_000));
+
+        Assert.Equal(GateStatus.TimeContradiction, status);
+    }
 }

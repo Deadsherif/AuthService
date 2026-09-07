@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Threading.Tasks;
 using AuthService;
 using AuthService.Services;
 using AuthService.Services.Licensing;
@@ -13,7 +14,7 @@ public class OnlineTimeAnchorTests
     // the local clock — otherwise a single bogus/future online reading would permanently
     // self-lock every later honest run (now < MaxDateSeen -> Rollback forever).
     [Fact]
-    public void OnlineTime_DetectsButDoesNotPersistToRatchet()
+    public async Task OnlineTime_DetectsButDoesNotPersistToRatchet()
     {
         var keys = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText("Vectors/keys.json"));
         LicensePublicKeys.LoadForTests(keys.GetProperty("kid").GetString(), keys.GetProperty("publicKeyPem").GetString());
@@ -28,10 +29,12 @@ public class OnlineTimeAnchorTests
 
         Auth.GateFactory = _ => new LicenseGate(new LicenseStore(path));
         Auth.NowProvider = () => DateTimeOffset.FromUnixTimeSeconds(1_760_000_000);      // local clock
-        Auth.OnlineTimeProvider = () => DateTimeOffset.FromUnixTimeSeconds(1_800_000_000); // higher untrusted reading (< exp 1.9e9)
+        Auth.OnlineTimeProvider = () => Task.FromResult<DateTimeOffset?>(
+            DateTimeOffset.FromUnixTimeSeconds(1_800_000_000)); // higher online reading (< exp 1.9e9)
         Auth.DeviceProvider = () => "TEST-DEVICE";
 
-        var status = Auth.ValidateAuth("Addin", "9F4E7C9b-9B06-4E9D-92BD-1FD0A3A2D7F8").GetAwaiter().GetResult();
+        var status = await Auth.ValidateAuth("Addin", "9F4E7C9b-9B06-4E9D-92BD-1FD0A3A2D7F8");
+        await Auth.GetBackgroundCheck("9F4E7C9b-9B06-4E9D-92BD-1FD0A3A2D7F8");
         Assert.Equal(SubscriptionService.SubscriptionStatus.Valid, status);
         Assert.Equal(1_760_000_000, store.Read().MaxDateSeen.ToUnixTimeSeconds()); // reflects LOCAL clock, not online 1.8e9
     }

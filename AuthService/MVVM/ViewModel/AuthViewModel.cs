@@ -155,7 +155,7 @@ namespace AuthService.MVVM.ViewModel
             CloseButtonText = "Close";
 
             // Production defaults for the test seams above.
-            TokenStoreOverride = null; // resolved lazily to LicenseStore.Default() at use time
+            TokenStoreOverride = null; // resolved lazily to the add-in-specific store at use time
             NowOverride = DateTimeOffset.UtcNow;
             DeviceOverride = DeviceFingerprint.CurrentDeviceId();
             MintClientOverride = new HttpMintClient(new System.Net.Http.HttpClient(), ActivationEndpoints.MintUrl);
@@ -216,10 +216,10 @@ namespace AuthService.MVVM.ViewModel
                     //else
                     //    await ActivateWithCodeAsync(raw);
                     await ActivateWithCodeAsync(raw);
-                    if (SubscriptionService.Status != SubscriptionService.SubscriptionStatus.Valid)
-                    {
-                        await RegisterLegacyAsync(raw);
-                    }
+                    //if (SubscriptionService.Status != SubscriptionService.SubscriptionStatus.Valid)
+                    //{
+                    //    await RegisterLegacyAsync(raw);
+                    //}
                     return;
             }
         }
@@ -311,7 +311,7 @@ namespace AuthService.MVVM.ViewModel
                 return;
             }
 
-            var store = TokenStoreOverride ?? LicenseStore.Default();
+            var store = TokenStoreOverride ?? LicenseStore.Default(_guid);
 
             // iat floor: seed MaxDateSeen with the later of the token's issue date and
             // "now", so the anti-rollback ratchet in LicenseGate starts at (at least) the

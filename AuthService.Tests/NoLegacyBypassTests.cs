@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using AuthService;
 using AuthService.MVVM.ViewModel;
@@ -45,7 +46,7 @@ public class NoLegacyBypassTests
 
         Auth.GateFactory = _ => new LicenseGate(new LicenseStore(path));
         Auth.NowProvider = () => DateTimeOffset.FromUnixTimeSeconds(1_750_000_000);
-        Auth.OnlineTimeProvider = () => null; // hermetic: no network call, order-independent
+        Auth.OnlineTimeProvider = () => Task.FromResult<DateTimeOffset?>(null);
         Auth.DeviceProvider = () => "TEST-DEVICE";
 
         var gate = Auth.GateFactory("9F4E7C9b-9B06-4E9D-92BD-1FD0A3A2D7F8");
@@ -53,7 +54,7 @@ public class NoLegacyBypassTests
             "9F4E7C9b-9B06-4E9D-92BD-1FD0A3A2D7F8",
             Auth.DeviceProvider(),
             Auth.NowProvider(),
-            Auth.OnlineTimeProvider());
+            null);
 
         // An empty store is exactly the "no license.json" case Auth.ValidateAuth hits before
         // it ever shows UI. If the gate itself doesn't grant Valid here, ValidateAuth's
@@ -80,7 +81,8 @@ public class NoLegacyBypassTests
         Assert.DoesNotContain("ValidateCachedEntryAgainstServer", allMembers);
         Assert.DoesNotContain("StartBackgroundRevalidation", allMembers);
 
-        // The subscription machinery that only existed to react to BackgroundValidationFailed.
+        // The legacy subscription type stays gone. Current background time validation updates
+        // Auth.IsRevoked directly and cannot grant Valid.
         Assert.Null(authType.GetField("_backgroundFailureSubscription", BindingFlags.NonPublic | BindingFlags.Instance));
         Assert.False(
             AppDomain.CurrentDomain.GetAssemblies()
@@ -165,7 +167,7 @@ public class NoLegacyBypassTests
     }
 
     [Fact]
-    public void Auth_Instance_IsRevoked_IsStableFalse()
+    public void Auth_Instance_IsRevoked_StartsFalse()
     {
         // Constructing a real System.Windows.Window requires an STA thread (WPF throws
         // InvalidOperationException otherwise). xUnit does not guarantee STA for test
@@ -180,8 +182,7 @@ public class NoLegacyBypassTests
             {
                 var window = new System.Windows.Window(); // Window is not IDisposable
                 using var auth = new Auth("Addin", "9F4E7C9b-9B06-4E9D-92BD-1FD0A3A2D7F8", window);
-                // Now that background revalidation is gone, nothing can ever flip IsRevoked --
-                // it must be a stable false, not just false at construction time.
+                // Revocation is driven only after a locally valid token starts an online check.
                 isRevoked = auth.IsRevoked;
             }
             catch (Exception ex)

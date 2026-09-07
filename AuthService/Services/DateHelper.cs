@@ -12,6 +12,14 @@ namespace AuthService.Services
     {
         public static async Task<DateTime> GetCurrentDateFromWebAsync()
         {
+            return await TryGetCurrentDateFromWebAsync().ConfigureAwait(false) ?? DateTime.UtcNow.Date;
+        }
+
+        // Unlike GetCurrentDateFromWebAsync, this method never substitutes the computer's
+        // clock for a failed server request. Background revocation must distinguish "offline"
+        // from an actual contradiction reported by a server.
+        public static async Task<DateTime?> TryGetCurrentDateFromWebAsync()
+        {
             // Ensure TLS 1.2 is enabled for .NET Framework
             System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12 | System.Net.SecurityProtocolType.Tls11 | System.Net.SecurityProtocolType.Tls;
             
@@ -96,16 +104,13 @@ namespace AuthService.Services
                         }
                         catch
                         {
-                            DateTime computerTime = DateTime.Now;
-                            return new DateTime(computerTime.Year, computerTime.Month, computerTime.Day);
+                            return null;
                         }
                     }
                 }
             }
             
-            // Fallback to UTC now if all web requests fail
-            DateTime utcNow = DateTime.UtcNow;
-            return new DateTime(utcNow.Year, utcNow.Month, utcNow.Day);
+            return null;
         }
 
         private class AisenseApiResponse

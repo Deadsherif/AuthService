@@ -2,7 +2,7 @@ using System;
 
 namespace AuthService.Services.Licensing
 {
-    public enum GateStatus { Valid, Invalid, Rollback }
+    public enum GateStatus { Valid, Invalid, Rollback, TimeContradiction }
 
     public sealed class LicenseGate
     {
@@ -15,6 +15,14 @@ namespace AuthService.Services.Licensing
         {
             var stored = _store.Read();
             if (stored == null) return GateStatus.Invalid;
+            if (stored.IsRevoked) return GateStatus.Invalid;
+
+            // The online providers currently return a calendar date rather than a precise
+            // timestamp. Compare UTC dates with a one-day tolerance so timezone differences
+            // and a check crossing midnight cannot revoke an otherwise valid license.
+            if (onlineNow.HasValue &&
+                onlineNow.Value.UtcDateTime.Date < stored.MaxDateSeen.UtcDateTime.Date.AddDays(-1))
+                return GateStatus.TimeContradiction;
 
             // Rollback vs the highest date ever persisted (cheap, pre-verify — also rejects
             // a garbage token whose clock is rolled back without doing crypto work). Uses the
@@ -58,5 +66,7 @@ namespace AuthService.Services.Licensing
             _store.Write(new StoredLicense { Token = stored.Token, MaxDateSeen = advanced });
             return GateStatus.Valid;
         }
+
+        public void Revoke() => _store.Revoke();
     }
 }

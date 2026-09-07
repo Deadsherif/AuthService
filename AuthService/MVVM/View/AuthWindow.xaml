@@ -185,7 +185,7 @@
                     CornerRadius="10"
                     Padding="20"
                     VerticalAlignment="Top"
-                    Visibility="{Binding StatusCardVisibility}">
+                    Visibility="Visible">
                 <StackPanel>
                     <TextBlock Text="Subscription Details" 
                                Foreground="{StaticResource TextGrayBrush}" 

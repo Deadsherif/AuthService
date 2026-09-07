@@ -22,7 +22,7 @@ namespace AuthService.Services.Licensing
     public static class ActivationEndpoints
     {
         public static string MintUrl =>
-            Environment.GetEnvironmentVariable("FIRSTOPTION_MINT_URL") ?? "https://vercel-portal-auth-service.vercel.app/activate";
+            Environment.GetEnvironmentVariable("FIRSTOPTION_MINT_URL") ?? "https://marketplace.firstoption-es.com/activate";
 
         public static string MarketplaceRedemptionsUrl =>
             Environment.GetEnvironmentVariable("FIRSTOPTION_MARKETPLACE_URL")
