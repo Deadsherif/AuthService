@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 
 namespace AuthService.Services
 {
+    [System.Reflection.Obfuscation(Feature = "renaming", Exclude = true, ApplyToMembers = true)]
     public class ApiResponseGet
     {
         [JsonPropertyName("code")]
@@ -23,6 +24,7 @@ namespace AuthService.Services
         public PayloadData Payload { get; set; }
     }
 
+    [System.Reflection.Obfuscation(Feature = "renaming", Exclude = true, ApplyToMembers = true)]
     public class PayloadData
     {
         [JsonPropertyName("subscription")]
@@ -36,6 +38,7 @@ namespace AuthService.Services
         public int Count { get; set; }
     }
 
+    [System.Reflection.Obfuscation(Feature = "renaming", Exclude = true, ApplyToMembers = true)]
     public class addon
     {
         [JsonPropertyName("guid")]
@@ -44,6 +47,7 @@ namespace AuthService.Services
         public string Name { get; set; }
     }
 
+    [System.Reflection.Obfuscation(Feature = "renaming", Exclude = true, ApplyToMembers = true)]
     public class Subscription
     {
         [JsonPropertyName("id")]
@@ -91,6 +95,7 @@ namespace AuthService.Services
         public bool IsTrial { get; set; }
     }
 
+    [System.Reflection.Obfuscation(Feature = "renaming", Exclude = true, ApplyToMembers = true)]
     public class Redemption
     {
         [JsonPropertyName("id")]

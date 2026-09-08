@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The JWT / crypto verifier lives in its own assembly that the obfuscator does
+       not process. System.IdentityModel.Tokens.Jwt and System.Text.Json rely on
+       reflection and member names that a renaming obfuscator (ConfuserEx) breaks.
+       This assembly holds no URLs, file paths, registry paths, or env-var names;
+       only the public key, the "ES256" literal, and JWT claim keys. Leaving it
+       readable leaks nothing sensitive. Keep it clean of any link or local path. -->
+
+  <PropertyGroup>
+    <TargetFrameworks>net47;net48;net8.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <AssemblyName>AuthService.Tokens</AssemblyName>
+    <RootNamespace>AuthService.Services.Licensing</RootNamespace>
+    <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.1.2" />
+  </ItemGroup>
+
+</Project>

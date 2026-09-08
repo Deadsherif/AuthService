@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OfflineActivationClient", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MintService", "tools\MintService\MintService.csproj", "{565DF41E-F341-45DC-BE40-BE6496C22E24}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthService.Tokens", "AuthService.Tokens\AuthService.Tokens.csproj", "{71781B6D-EE78-46A1-895E-044EDF51EACC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -184,6 +186,36 @@ Global
 		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Release|x64.Build.0 = Release|Any CPU
 		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Release|x86.ActiveCfg = Release|Any CPU
 		{565DF41E-F341-45DC-BE40-BE6496C22E24}.Release|x86.Build.0 = Release|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Debug|x64.Build.0 = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Debug|x86.Build.0 = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Net Framework 4.7|Any CPU.ActiveCfg = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Net Framework 4.7|Any CPU.Build.0 = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Net Framework 4.7|x64.ActiveCfg = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Net Framework 4.7|x64.Build.0 = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Net Framework 4.7|x86.ActiveCfg = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Net Framework 4.7|x86.Build.0 = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Net Framework 4.8.1|Any CPU.ActiveCfg = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Net Framework 4.8.1|Any CPU.Build.0 = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Net Framework 4.8.1|x64.ActiveCfg = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Net Framework 4.8.1|x64.Build.0 = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Net Framework 4.8.1|x86.ActiveCfg = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Net Framework 4.8.1|x86.Build.0 = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Net8.0-windows|Any CPU.ActiveCfg = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Net8.0-windows|Any CPU.Build.0 = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Net8.0-windows|x64.ActiveCfg = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Net8.0-windows|x64.Build.0 = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Net8.0-windows|x86.ActiveCfg = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Net8.0-windows|x86.Build.0 = Debug|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Release|x64.ActiveCfg = Release|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Release|x64.Build.0 = Release|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Release|x86.ActiveCfg = Release|Any CPU
+		{71781B6D-EE78-46A1-895E-044EDF51EACC}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

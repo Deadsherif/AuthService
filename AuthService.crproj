@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ConfuserEx project for AuthService.
+
+  WHAT THIS OBFUSCATES
+    Only AuthService.dll. It renames types/members, encrypts string constants
+    (hiding the marketplace URLs, the time-service URLs, the env-var names, and
+    the registry paths), and adds control-flow obfuscation.
+
+  WHAT IT MUST NOT TOUCH
+    AuthService.Tokens.dll and the third-party DLLs (System.IdentityModel.Tokens.Jwt,
+    Microsoft.IdentityModel.*, System.Text.Json). They stay as external references
+    and are copied to the output folder unchanged. The JWT stack breaks under
+    renaming, which is exactly why the verifier lives in AuthService.Tokens.dll.
+
+  RENAME EXCLUSIONS (already handled in code)
+    DependencyResolver, ApiResponseGet (+ nested), and the two DateHelper POCOs
+    carry [System.Reflection.Obfuscation(Feature="renaming", Exclude=true,
+    ApplyToMembers=true)], which ConfuserEx honors. No rule is needed for them here.
+
+  DO NOT ENABLE anti tamper or anti debug. AuthService.dll is loaded inside host
+  processes (Revit, AutoCAD). Those protections make the host fail to load it.
+
+  BEFORE RUNNING
+    Build the solution first, then point baseDir at the built output folder for the
+    framework you ship. The path below is the net48 Release-style output; change it
+    for net47 or net8.0-windows as needed. ConfuserEx needs every dependency DLL
+    present in baseDir so it can resolve references (the build already copies them).
+-->
+<project outputDir="Confused\net48" baseDir="AuthService\bin\Net Framework 4.8.1\net48" xmlns="http://confuser.codeplex.com">
+
+  <rule pattern="true" preset="none" inherit="false">
+    <protection id="rename" />
+    <protection id="constants" />
+    <protection id="ctrl flow" />
+  </rule>
+
+  <!-- Obfuscate ONLY this module. Everything else in baseDir is an external
+       reference, copied to outputDir untouched. -->
+  <module path="AuthService.dll" />
+
+</project>

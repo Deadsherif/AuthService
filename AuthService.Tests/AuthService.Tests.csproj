@@ -14,6 +14,7 @@
   <ItemGroup>
     <ProjectReference Include="..\AuthService\AuthService.csproj" />
     <ProjectReference Include="..\tools\OfflineActivationClient\OfflineActivationClient.csproj" />
+    <ProjectReference Include="..\AuthService.Tokens\AuthService.Tokens.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Vectors\*.json" CopyToOutputDirectory="PreserveNewest" />

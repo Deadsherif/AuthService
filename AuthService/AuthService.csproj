@@ -89,10 +89,8 @@
     <Compile Include="Services\DateTimeConverter.cs" />
     <Compile Include="Services\SubscriptionService.cs" />
     <Compile Include="Services\Validiation.cs" />
-    <Compile Include="Services\Licensing\LicenseClaims.cs" />
-    <Compile Include="Services\Licensing\LicensePublicKeys.cs" />
-    <Compile Include="Services\Licensing\LicenseTokenVerifier.cs" />
     <Compile Include="Services\Licensing\DeviceFingerprint.cs" />
+    <Compile Include="Services\Licensing\LicenseBlobCodec.cs" />
     <Compile Include="Services\Licensing\RollbackRatchet.cs" />
     <Compile Include="Services\Licensing\LicenseStore.cs" />
     <Compile Include="Services\Licensing\LicenseGate.cs" />
@@ -103,7 +101,14 @@
   <ItemGroup>
     <PackageReference Include="System.Net.Http.Json" Version="8.0.0" />
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.1.2" />
+  </ItemGroup>
+
+  <!-- The JWT/crypto verifier is a separate assembly kept OUT of obfuscation.
+       Referencing it here pulls its output (AuthService.Tokens.dll) and the
+       IdentityModel DLLs into this project's output folder, where the
+       DependencyResolver can probe them by assembly name at runtime. -->
+  <ItemGroup>
+    <ProjectReference Include="..\AuthService.Tokens\AuthService.Tokens.csproj" />
   </ItemGroup>
 
 	<!-- ilrepack: merge all output dlls into one

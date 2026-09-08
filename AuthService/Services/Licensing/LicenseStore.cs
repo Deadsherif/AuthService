@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
 
 namespace AuthService.Services.Licensing
 {
@@ -48,19 +47,21 @@ namespace AuthService.Services.Licensing
             return new LicenseStore(path, Path.Combine(root, "license.json"));
         }
 
+        // The file holds an opaque, tamper-checked, device-bound blob (see
+        // LicenseBlobCodec) instead of readable JSON. A hand edit fails the MAC and
+        // Decode returns null, which the gate treats as "no license" -> re-activate.
         public StoredLicense Read()
         {
             var path = File.Exists(_path) ? _path : _legacyPath;
-            return !string.IsNullOrEmpty(path) && File.Exists(path)
-                ? JsonSerializer.Deserialize<StoredLicense>(File.ReadAllText(path))
-                : null;
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
+            return LicenseBlobCodec.Decode(File.ReadAllBytes(path));
         }
 
         public void Write(StoredLicense license)
         {
             var dir = Path.GetDirectoryName(_path);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
-            File.WriteAllText(_path, JsonSerializer.Serialize(license));
+            File.WriteAllBytes(_path, LicenseBlobCodec.Encode(license));
         }
 
         public void Clear()
