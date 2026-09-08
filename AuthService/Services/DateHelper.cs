@@ -113,7 +113,7 @@ namespace AuthService.Services
             return null;
         }
 
-        [System.Reflection.Obfuscation(Feature = "renaming", Exclude = true, ApplyToMembers = true)]
+        [System.Reflection.Obfuscation(Feature = "-rename", Exclude = false, ApplyToMembers = true)]
         private class AisenseApiResponse
         {
             [JsonPropertyName("datetime")]
@@ -121,7 +121,7 @@ namespace AuthService.Services
             public DateTime Datetime { get; set; }
         }
 
-        [System.Reflection.Obfuscation(Feature = "renaming", Exclude = true, ApplyToMembers = true)]
+        [System.Reflection.Obfuscation(Feature = "-rename", Exclude = false, ApplyToMembers = true)]
         private class IpGeolocationApiResponse
         {
             [JsonPropertyName("timezone")]

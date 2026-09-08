@@ -17,7 +17,7 @@ namespace AuthService.Services
     /// assembly satisfy the request, so consumers get the fix for free just by
     /// referencing AuthService — no per-add-in wiring.
     /// </summary>
-    [System.Reflection.Obfuscation(Feature = "renaming", Exclude = true, ApplyToMembers = true)]
+    [System.Reflection.Obfuscation(Feature = "-rename", Exclude = false, ApplyToMembers = true)]
     internal static class DependencyResolver
     {
         private static int _registered;
