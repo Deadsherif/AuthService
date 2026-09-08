@@ -110,27 +110,4 @@
     <ProjectReference Include="..\AuthService.Tokens\AuthService.Tokens.csproj" />
   </ItemGroup>
 
-	<!-- ilrepack: merge all output dlls into one
-	<Target Condition="'$(TargetFramework)' != 'net8.0-windows'" Name="ILRepackAfterBuild" AfterTargets="Build">
-		<PropertyGroup>
-			<ILRepackExe Condition="'$(SolutionDir)' != ''">$(SolutionDir)tools\ilrepack\ILRepack.exe</ILRepackExe>
-			<ILRepackExe Condition="'$(ILRepackExe)' == '' OR !Exists('$(ILRepackExe)')">$(MSBuildProjectDirectory)\tools\ilrepack\ILRepack.exe</ILRepackExe>
-			<MergeOutDir>$(TargetDir)Merged\</MergeOutDir>
-			<MergeOutFile>$(MergeOutDir)AuthService.dll</MergeOutFile>
-			<ILRepackLibDir>$([System.String]::Copy('$(TargetDir)').TrimEnd('\'))</ILRepackLibDir>
-		</PropertyGroup>
-		<ItemGroup>
-
-			<PrimaryAssembly Include="$(TargetPath)" />
-			<AssembliesToMerge Include="$(TargetDir)*.dll" Exclude="$(TargetPath);$(MergeOutDir)**\*;$(MergeOutFile)" />
-		</ItemGroup>
-		<PropertyGroup>
-			<PrimaryQuoted>@(PrimaryAssembly->'"%(FullPath)"',' ')</PrimaryQuoted>
-			<AssembliesQuoted>@(AssembliesToMerge->'"%(FullPath)"',' ')</AssembliesQuoted>
-			<ILRepackCmd>"$(ILRepackExe)" /allowduplicateresources /union /lib:"$(ILRepackLibDir)" /out:"$(MergeOutFile)" $(PrimaryQuoted) $(AssembliesQuoted)</ILRepackCmd>
-		</PropertyGroup>
-		<MakeDir Directories="$(MergeOutDir)" Condition="!Exists('$(MergeOutDir)')" />
-		<Exec Command="$(ILRepackCmd)" Condition="Exists('$(ILRepackExe)')" />
-	</Target>
-	 -->
 </Project>
