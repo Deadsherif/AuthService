@@ -29,7 +29,11 @@ namespace AuthService.Services.Licensing
 
         // Embedded salt. It is not a real secret (it ships in the assembly); constant
         // encryption in the obfuscator hides it, and it only has to raise the effort.
-        private const string Salt = "FO~c7b1f0a4-9d2e-4a83-8b16-license-ratchet-v1";
+        // NOTE: this MUST be static readonly, not const. A const string keeps its literal
+        // value in the metadata Constant table, which ConfuserEx constant encryption does
+        // not touch, so the salt would leak in clear. As static readonly, the value is
+        // assigned by an ldstr in the static constructor, which the obfuscator encrypts.
+        private static readonly string Salt = "FO~c7b1f0a4-9d2e-4a83-8b16-license-ratchet-v1";
 
         public static byte[] Encode(StoredLicense license)
         {

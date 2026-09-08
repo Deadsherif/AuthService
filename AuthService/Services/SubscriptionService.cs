@@ -19,7 +19,10 @@ namespace AuthService.Services
         internal static void SetStatus(SubscriptionStatus s) => Status = s;
 
         private readonly HttpClient _httpClient;
-        private const string RedemptionsUrl = "https://marketplace.firstoption-es.com/api/subscriptions/redemptions";
+        // static readonly, not const: a const string keeps its value in the metadata
+        // Constant table (which the obfuscator's constant encryption does not touch), so
+        // the URL would leak in clear. As static readonly it is an encrypted ldstr.
+        private static readonly string RedemptionsUrl = "https://marketplace.firstoption-es.com/api/subscriptions/redemptions";
 
         public SubscriptionService()
         {
