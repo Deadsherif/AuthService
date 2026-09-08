@@ -88,7 +88,6 @@
     <Compile Include="Services\DateHelper.cs" />
     <Compile Include="Services\DateTimeConverter.cs" />
     <Compile Include="Services\SubscriptionService.cs" />
-    <Compile Include="Services\Validiation.cs" />
     <Compile Include="Services\Licensing\DeviceFingerprint.cs" />
     <Compile Include="Services\Licensing\LicenseBlobCodec.cs" />
     <Compile Include="Services\Licensing\RollbackRatchet.cs" />
